@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 74.67, "left": 45.33, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": -69.65, "left": -9.63, "attrs": {} },
+    {
+      "type": "wokwi-dht22",
+      "id": "dht1",
+      "top": -100.5,
+      "left": 249,
+      "attrs": { "humidity": "55.5", "temperature": "-38" }
+    },
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -167.6, "left": 347.39, "attrs": {} }
+  ],
+  "connections": [
+    [ "dht1:GND", "uno:GND.1", "black", [ "v32.67", "h-132.47" ] ],
+    [ "dht1:VCC", "uno:5V", "red", [ "v40", "h77.67", "v238.67", "h-136.67" ] ],
+    [ "dht1:SDA", "uno:2", "green", [ "v47.33", "h5.5" ] ],
+    [ "oled1:GND", "uno:GND.1", "black", [ "v-50.41", "h118.46" ] ],
+    [
+      "oled1:VCC",
+      "uno:5V",
+      "red",
+      [ "v-45.75", "h65.01", "v174.67", "h-74", "v227.33", "h174.67" ]
+    ],
+    [ "oled1:SCL", "uno:A5.2", "green", [ "v-39.08", "h65.56", "v1.33" ] ],
+    [ "oled1:SDA", "uno:A4.2", "green", [ "v-29.75", "h69.73" ] ],
+    [ "relay1:GND", "uno:GND.1", "black", [ "h-190.63", "v10.59" ] ],
+    [ "relay1:VCC", "uno:5V", "red", [ "h-365.17", "v449.59", "h7.34" ] ],
+    [ "relay1:IN", "uno:13", "green", [ "h0" ] ]
+  ],
+  "dependencies": {}
+}
