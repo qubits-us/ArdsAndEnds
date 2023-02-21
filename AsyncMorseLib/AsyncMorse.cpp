@@ -48,8 +48,7 @@ void AsyncMorse::MorseStart()
 {
    if (morse_loaded){
   loop_morse = saved_loop;
-  loop_morse = false;
-  morse_done = true;
+  morse_done = false;
    }
 }
 
