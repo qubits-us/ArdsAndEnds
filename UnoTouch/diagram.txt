@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 169.33, "left": 27.33, "attrs": {} },
+    {
+      "type": "board-ili9341-cap-touch",
+      "id": "lcd1",
+      "top": -164.57,
+      "left": 31.75,
+      "attrs": {}
+    },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": 49.43, "left": -163.2, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": 205.33, "left": -161.8, "attrs": {} }
+  ],
+  "connections": [
+    [ "lcd1:VCC", "vcc1:VCC", "red", [ "v17.39", "h-223.53" ] ],
+    [ "lcd1:GND", "gnd1:GND", "black", [ "v28.73", "h-231.13", "v58" ] ],
+    [ "lcd1:CS", "nano:10", "green", [ "v32.06", "h-21.39", "v15.33" ] ],
+    [ "lcd1:D/C", "nano:9", "green", [ "v38.73", "h-31.93" ] ],
+    [ "lcd1:SCK", "nano:13", "green", [ "v36.73", "h-111.13", "v92.67", "h30.67" ] ],
+    [ "lcd1:SDA", "nano:A4", "green", [ "v30.06", "h49.81", "v106.67", "h-89.33" ] ],
+    [ "lcd1:SCL", "nano:A5", "green", [ "v38.06", "h52.74", "v92", "h-88.67" ] ],
+    [ "lcd1:MOSI", "nano:11", "green", [ "v39.3", "h2.59" ] ],
+    [ "lcd1:MISO", "nano:12", "green", [ "v40.12", "h-106.14" ] ],
+    [ "lcd1:LED", "vcc1:VCC", "green", [ "v22.99", "h-296.36" ] ]
+  ],
+  "dependencies": {}
+}
