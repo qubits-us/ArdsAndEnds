@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 83.33, "left": -27.33, "attrs": {} },
+    {
+      "type": "wokwi-pir-motion-sensor",
+      "id": "pir1",
+      "top": -134.67,
+      "left": 203.02,
+      "attrs": {}
+    },
+    { "type": "wokwi-a4988", "id": "drv1", "top": -35.48, "left": 18, "rotate": -90, "attrs": {} },
+    {
+      "type": "wokwi-stepper-motor",
+      "id": "stepper1",
+      "top": -166.73,
+      "left": 5,
+      "attrs": { "size": "8", "gearRatio": "10:1", "arrow": "true" }
+    },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": -161.24, "left": 146.8, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": -31.33, "left": -85.8, "attrs": {} },
+    {
+      "type": "wokwi-pir-motion-sensor",
+      "id": "pir2",
+      "top": -140.69,
+      "left": 323.6,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-slide-switch",
+      "id": "sw1",
+      "top": 98.54,
+      "left": 192.01,
+      "rotate": 90,
+      "attrs": {}
+    }
+  ],
+  "connections": [
+    [ "drv1:2B", "stepper1:A-", "green", [ "v0" ] ],
+    [ "drv1:2A", "stepper1:A+", "green", [ "v0" ] ],
+    [ "drv1:1A", "stepper1:B+", "green", [ "v0" ] ],
+    [ "drv1:1B", "stepper1:B-", "green", [ "v0" ] ],
+    [ "drv1:VDD", "vcc1:VCC", "green", [ "v-54.14", "h68.68" ] ],
+    [ "drv1:SLEEP", "drv1:RESET", "green", [ "v14.01", "h-7.8" ] ],
+    [ "drv1:STEP", "nano:10", "green", [ "v28.01", "h-54.07" ] ],
+    [ "drv1:DIR", "nano:11", "green", [ "v27.35", "h-78.33" ] ],
+    [ "pir1:VCC", "vcc1:VCC", "red", [ "v1.4", "h-79.53" ] ],
+    [ "pir1:GND", "nano:GND.1", "black", [ "v215.4", "h-140.99" ] ],
+    [ "drv1:GND.2", "gnd1:GND", "black", [ "v-26.14", "h-97.99" ] ],
+    [ "drv1:GND.1", "gnd1:GND", "black", [ "h4.41", "v-33.47", "h-157.33" ] ],
+    [ "pir1:OUT", "nano:2", "green", [ "v100.74", "h-171.27" ] ],
+    [ "pir2:VCC", "vcc1:VCC", "red", [ "v22.58", "h-201.25" ] ],
+    [ "pir2:GND", "nano:GND.1", "black", [ "v220.36", "h-259.9" ] ],
+    [ "pir2:OUT", "nano:3", "green", [ "v108.41", "h-288.43" ] ],
+    [ "sw1:1", "nano:4", "green", [ "h-9.36", "v-49.32", "h-113.82" ] ],
+    [ "sw1:2", "nano:GND.1", "green", [ "h-16.83", "v64.32", "h-58.77", "v-6.53" ] ]
+  ],
+  "dependencies": {}
+}
