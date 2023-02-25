@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 64, "left": 22, "attrs": {} },
+    {
+      "type": "wokwi-microsd-card",
+      "id": "sd1",
+      "top": -71.89,
+      "left": 95.53,
+      "rotate": 90,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": -24.6,
+      "left": 347.6,
+      "attrs": { "color": "green" }
+    }
+  ],
+  "connections": [
+    [ "sd1:SCK", "uno:13", "green", [ "v27.57", "h7.64" ] ],
+    [ "sd1:DO", "uno:12", "green", [ "v0" ] ],
+    [ "sd1:DI", "uno:11", "green", [ "v42.23", "h45.59" ] ],
+    [ "sd1:CS", "uno:10", "green", [ "v40.9", "h62.37" ] ],
+    [ "sd1:VCC", "uno:5V", "red", [ "v33.57", "h-133.58", "v253.33", "h186.67" ] ],
+    [ "sd1:GND", "uno:GND.2", "black", [ "v23.57", "h173.93", "v265.33", "h-131.33" ] ],
+    [ "btn1:1.l", "uno:3", "green", [ "h0" ] ],
+    [ "btn1:2.r", "uno:GND.1", "green", [ "h13.73", "v44.37", "h-289.33" ] ]
+  ],
+  "dependencies": {}
+}
