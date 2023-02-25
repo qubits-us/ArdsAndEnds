@@ -229,6 +229,7 @@ bool SaveSample() {
     }
     myFile.write((uint8_t *)&SampleRec, sizeof(SampleRec));
     myFile.close();
+    myFile.flush();
     NextSequence++;
     CurrRec++;
     return true;
