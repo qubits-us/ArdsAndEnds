@@ -5,7 +5,7 @@ object MainFrm: TMainFrm
   BorderStyle = bsSingle
   Caption = 'AckMe'
   ClientHeight = 463
-  ClientWidth = 402
+  ClientWidth = 359
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,11 +17,11 @@ object MainFrm: TMainFrm
   object Panel1: TPanel
     Left = 0
     Top = 0
-    Width = 402
+    Width = 359
     Height = 145
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 624
+    ExplicitWidth = 402
     object lblPortNum: TLabel
       Left = 16
       Top = 8
@@ -53,7 +53,7 @@ object MainFrm: TMainFrm
     object btnBegin: TButton
       Left = 280
       Top = 104
-      Width = 75
+      Width = 60
       Height = 25
       Caption = 'Begin'
       TabOrder = 0
@@ -62,9 +62,9 @@ object MainFrm: TMainFrm
     object btnSelectFile: TButton
       Left = 280
       Top = 69
-      Width = 75
+      Width = 60
       Height = 25
-      Caption = 'Select File'
+      Caption = 'Select'
       TabOrder = 1
       OnClick = btnSelectFileClick
     end
@@ -125,18 +125,15 @@ object MainFrm: TMainFrm
   object Panel2: TPanel
     Left = 0
     Top = 145
-    Width = 402
+    Width = 359
     Height = 318
     Align = alClient
     TabOrder = 1
-    ExplicitLeft = 216
-    ExplicitTop = 272
-    ExplicitWidth = 185
-    ExplicitHeight = 41
+    ExplicitWidth = 402
     object memDisplay: TMemo
       Left = 1
       Top = 1
-      Width = 400
+      Width = 357
       Height = 316
       Align = alClient
       Color = clBlack
@@ -148,20 +145,18 @@ object MainFrm: TMainFrm
       ParentFont = False
       TabOrder = 0
       StyleElements = [seBorder]
-      ExplicitLeft = 48
-      ExplicitTop = 32
-      ExplicitWidth = 185
-      ExplicitHeight = 89
+      ExplicitWidth = 400
     end
   end
   object ComPort: TApdComPort
     TraceName = 'APRO.TRC'
     LogName = 'APRO.LOG'
-    Left = 448
+    Left = 176
+    Top = 184
   end
   object odSelectFile: TOpenDialog
-    Left = 384
-    Top = 24
+    Left = 32
+    Top = 192
   end
   object DataPack: TApdDataPacket
     Enabled = False
@@ -170,20 +165,28 @@ object MainFrm: TMainFrm
     ComPort = ComPort
     PacketSize = 1
     OnPacket = DataPackPacket
-    Left = 448
-    Top = 56
+    Left = 160
+    Top = 312
   end
   object tmrSend: TTimer
     Enabled = False
     Interval = 1
     OnTimer = tmrSendTimer
-    Left = 400
+    Left = 88
+    Top = 312
   end
   object tmrResend: TTimer
     Enabled = False
     Interval = 1
     OnTimer = tmrResendTimer
-    Left = 352
-    Top = 65528
+    Left = 112
+    Top = 216
+  end
+  object tmrBegin: TTimer
+    Enabled = False
+    Interval = 2000
+    OnTimer = tmrBeginTimer
+    Left = 240
+    Top = 265
   end
 end

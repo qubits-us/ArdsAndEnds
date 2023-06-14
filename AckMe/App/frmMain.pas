@@ -27,6 +27,7 @@ type
     DataPack: TApdDataPacket;
     tmrSend: TTimer;
     tmrResend: TTimer;
+    tmrBegin: TTimer;
     procedure btnSelectFileClick(Sender: TObject);
     procedure btnBeginClick(Sender: TObject);
     procedure SendChunk;
@@ -34,6 +35,7 @@ type
     procedure DataPackPacket(Sender: TObject; Data: Pointer; Size: Integer);
     procedure tmrSendTimer(Sender: TObject);
     procedure tmrResendTimer(Sender: TObject);
+    procedure tmrBeginTimer(Sender: TObject);
   private
     { Private declarations }
   public
@@ -115,7 +117,7 @@ if TFile.Exists(aFileName) then
 
          //good to start..
          CurrentPos:=0;
-         SendChunk;
+         tmrBegin.Enabled:=true;
          btnBegin.Enabled:=false;
 
  end else
@@ -188,6 +190,12 @@ procedure TMainFrm.Resend;
 begin
  if Length(SendBuff)>0 then
        Comport.PutBlock(SendBuff[0],Length(SendBuff));
+end;
+
+procedure TMainFrm.tmrBeginTimer(Sender: TObject);
+begin
+tmrBegin.Enabled:=false;
+SendChunk;
 end;
 
 procedure TMainFrm.tmrResendTimer(Sender: TObject);
