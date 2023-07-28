@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-uno", "id": "uno", "top": 87.33, "left": -8, "attrs": {} },
+    { "type": "board-ssd1306", "id": "oled1", "top": -40.99, "left": 11.04, "attrs": {} },
+    { "type": "wokwi-ky-040", "id": "encoder1", "top": -30.43, "left": 145.33, "attrs": {} }
+  ],
+  "connections": [
+    [ "oled1:GND", "uno:GND.2", "black", [ "v-19.74", "h-78.21", "v366", "h186.67" ] ],
+    [ "oled1:VCC", "uno:5V", "red", [ "v-27.74", "h-96.99", "v381.33", "h194.67" ] ],
+    [ "oled1:SCL", "uno:A5.2", "green", [ "v-28.41", "h57.56", "v123.33", "h-54" ] ],
+    [ "oled1:SDA", "uno:A4.2", "green", [ "v-21.74", "h51.07", "v124", "h-44" ] ],
+    [ "encoder1:GND", "uno:GND.2", "black", [ "h35", "v296", "h-132.67" ] ],
+    [ "encoder1:VCC", "uno:5V", "red", [ "h46.34", "v314.53", "h-158.67" ] ],
+    [ "encoder1:CLK", "uno:2", "green", [ "h66.34", "v92.26", "h-102" ] ],
+    [ "encoder1:DT", "uno:3", "green", [ "h75.67", "v86.76", "h-126" ] ]
+  ],
+  "dependencies": {}
+}
