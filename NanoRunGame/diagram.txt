@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 0, "left": 0, "attrs": {} },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": -85.4,
+      "left": 28.14,
+      "attrs": { "color": "green", "bounce": "0" }
+    },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": 104.8,
+      "left": 4.13,
+      "attrs": { "pins": "i2c" }
+    },
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -142.47, "left": 202.13, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": -166.57, "left": 147.47, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": -14, "left": 248.2, "attrs": {} },
+    {
+      "type": "wokwi-buzzer",
+      "id": "bz1",
+      "top": -151.43,
+      "left": -73.54,
+      "attrs": { "volume": "0.1" }
+    }
+  ],
+  "connections": [
+    [ "lcd1:GND", "nano:GND.1", "black", [ "h-20.46", "v-35.4", "h156" ] ],
+    [ "lcd1:VCC", "nano:5V", "red", [ "h-31.13", "v-51.57", "h58.67" ] ],
+    [ "lcd1:SDA", "nano:A4", "green", [ "h-40.46", "v-68.4", "h118.67" ] ],
+    [ "lcd1:SCL", "nano:A5", "green", [ "h-47.8", "v-81.23", "h133.33" ] ],
+    [ "btn1:1.r", "nano:GND.2", "black", [ "v0.47", "h22.53" ] ],
+    [ "vcc1:VCC", "relay1:VCC", "red", [ "v0" ] ],
+    [ "relay1:GND", "gnd1:GND", "black", [ "h-19.8", "v86.87" ] ],
+    [ "gnd1:GND", "nano:GND.2", "black", [ "v1.4", "h-132.74" ] ],
+    [ "relay1:IN", "nano:3", "green", [ "h0" ] ],
+    [ "btn1:2.l", "nano:4", "green", [ "h-1.14", "v22.13", "h66" ] ],
+    [ "bz1:1", "nano:GND.1", "black", [ "v161.8", "h188.23" ] ],
+    [ "bz1:2", "nano:7", "red", [ "v51.24", "h99.44" ] ]
+  ],
+  "dependencies": {}
+}

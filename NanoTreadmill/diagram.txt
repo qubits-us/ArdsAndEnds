@@ -1,0 +1,65 @@
+{
+  "version": 1,
+  "author": "Anonymous maker",
+  "editor": "wokwi",
+  "parts": [
+    { "type": "wokwi-arduino-nano", "id": "nano", "top": 79.33, "left": -42.67, "attrs": {} },
+    {
+      "type": "wokwi-lcd1602",
+      "id": "lcd1",
+      "top": -132.54,
+      "left": -50.54,
+      "attrs": { "pins": "i2c" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn1",
+      "top": 10.6,
+      "left": -30.53,
+      "attrs": { "color": "green" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn2",
+      "top": 9.93,
+      "left": 66.13,
+      "attrs": { "color": "yellow" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn3",
+      "top": 11.27,
+      "left": 157.47,
+      "attrs": { "color": "red" }
+    },
+    {
+      "type": "wokwi-pushbutton",
+      "id": "btn4",
+      "top": 89.27,
+      "left": 165.47,
+      "attrs": { "color": "blue" }
+    },
+    { "type": "wokwi-relay-module", "id": "relay1", "top": -200.46, "left": 121.46, "attrs": {} },
+    { "type": "wokwi-vcc", "id": "vcc1", "top": -208.17, "left": -31.47, "attrs": {} },
+    { "type": "wokwi-gnd", "id": "gnd1", "top": -87.6, "left": -119.39, "attrs": {} }
+  ],
+  "connections": [
+    [ "lcd1:SCL", "nano:A5", "green", [ "h-7.13", "v224.77", "h107.33" ] ],
+    [ "lcd1:SDA", "nano:A4", "green", [ "h-13.79", "v239.61", "h105.33" ] ],
+    [ "lcd1:VCC", "nano:3.3V", "red", [ "h-19.13", "v252.44", "h55.33" ] ],
+    [ "lcd1:GND", "nano:GND.1", "black", [ "h-27.13", "v268.61", "h175.33" ] ],
+    [ "btn3:1.r", "btn2:1.r", "green", [ "v-14.87", "h-94.8" ] ],
+    [ "btn2:1.r", "btn1:1.l", "green", [ "v-16.2", "h-166.8" ] ],
+    [ "btn1:1.l", "nano:GND.1", "green", [ "h-44.47", "v142.47", "h176" ] ],
+    [ "nano:2", "btn3:2.l", "green", [ "v-14.06", "h79.3" ] ],
+    [ "nano:3", "btn2:2.l", "green", [ "v-41.4", "h7.57" ] ],
+    [ "nano:4", "btn1:2.r", "green", [ "v-14.73", "h-83.5" ] ],
+    [ "btn4:2.r", "nano:GND.1", "green", [ "h3.86", "v44.8", "h-133.33" ] ],
+    [ "btn4:1.l", "nano:5", "green", [ "h-31.14", "v-44.87", "h-91.33" ] ],
+    [ "relay1:VCC", "vcc1:VCC", "red", [ "h0" ] ],
+    [ "relay1:GND", "gnd1:GND", "black", [ "h0" ] ],
+    [ "lcd1:GND", "gnd1:GND", "black", [ "h0" ] ],
+    [ "relay1:IN", "nano:6", "green", [ "h-200.46", "v230.79", "h107.33" ] ]
+  ],
+  "dependencies": {}
+}
