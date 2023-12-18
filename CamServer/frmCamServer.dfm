@@ -11,6 +11,8 @@ object CamServerFrm: TCamServerFrm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  OnClose = FormClose
+  OnCreate = FormCreate
   TextHeight = 15
   object pnlTop: TPanel
     Left = 0
@@ -43,6 +45,15 @@ object CamServerFrm: TCamServerFrm
       TabOrder = 1
       Text = '5001'
     end
+    object btnPlayback: TButton
+      Left = 364
+      Top = 8
+      Width = 75
+      Height = 25
+      Caption = 'Playback'
+      TabOrder = 2
+      OnClick = btnPlaybackClick
+    end
   end
   object sbMain: TStatusBar
     Left = 0
@@ -54,9 +65,6 @@ object CamServerFrm: TCamServerFrm
         Text = 'Connections: 0'
         Width = 50
       end>
-    ExplicitLeft = 216
-    ExplicitTop = 64
-    ExplicitWidth = 0
   end
   object sckServer: TWSocket
     LineEnd = #13#10
@@ -64,13 +72,14 @@ object CamServerFrm: TCamServerFrm
     Proto = 'tcp'
     LocalAddr = '0.0.0.0'
     LocalAddr6 = '::'
+    LocalPort = '0'
     SocksLevel = '5'
     ExclusiveAddr = False
     ComponentOptions = []
     ListenBacklog = 15
     OnSessionAvailable = sckServerSessionAvailable
     SocketErrs = wsErrTech
-    Left = 376
-    Top = 16
+    Left = 272
+    Top = 40
   end
 end

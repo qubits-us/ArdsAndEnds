@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OverbyteIcsWndControl, OverbyteIcsWSocket, Vcl.StdCtrls, Vcl.ExtCtrls,VCL.Imaging.jpeg, Vcl.ExtDlgs,
-  OverbyteIcsWSocketS;
+  OverbyteIcsWSocketS,System.IOUtils;
 
 type
   TCamViewFrm = class(TForm)
@@ -20,6 +20,7 @@ type
     btnSave: TButton;
     dlgSavePic: TSavePictureDialog;
     chkDebug: TCheckBox;
+    chkRecord: TCheckBox;
     procedure sckCamDataAvailable(Sender: TObject; ErrCode: Word);
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -34,10 +35,15 @@ type
     procedure btnCloseClick(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
     procedure chkDebugClick(Sender: TObject);
+    procedure chkRecordClick(Sender: TObject);
+    procedure StartRecording;
+    procedure StopRecording;
+    procedure SaveFrame;
   private
     { Private declarations }
   public
     { Public declarations }
+  CamNum:integer;
   imgBuff:TBytes;
   imgSize:Int32;
   RecvCount:integer;
@@ -47,6 +53,11 @@ type
   NumImgs:integer;
   haveImage:boolean;
   debugging:boolean;
+  strmFile:TBufferedFileStream;
+  vFolder:String;
+  vFilePath:String;
+  vFileName:String;
+  recording:boolean;
   end;
 
 var
@@ -60,6 +71,11 @@ implementation
 procedure TCamViewFrm.FormCreate(Sender: TObject);
 begin
  //
+ vFilePath:=ExtractFilePath(Application.ExeName);
+ vFilePath:=vFilePath+'video\';
+ //one folder for each day..
+ vFolder:=FormatDateTime('YYYY-MM-DD', now);
+
  SetLength(imgBuff,200000);
  imgRecvd:=false;
  imgSize:=0;
@@ -71,6 +87,8 @@ begin
  BadPacks:=0;
  haveImage:=false;
  debugging:=false;
+ CamNum:=0;
+ recording:=false;
 end;
 
 procedure TCamViewFrm.btnCloseClick(Sender: TObject);
@@ -105,6 +123,99 @@ if chkDebug.Checked then
     end;
 end;
 
+procedure TCamViewFrm.chkRecordClick(Sender: TObject);
+begin
+//are we saving the stream..
+if chkRecord.Checked then
+  begin
+  //start recording process..
+   StartRecording;
+
+
+  end else
+    begin
+    //stop recording..
+    StopRecording;
+
+    end;
+
+end;
+
+procedure TCamViewFrm.StartRecording;
+var
+newFolder:String;
+begin
+  //setup for recording the stream
+
+ //check for day change..
+ newFolder:=FormatDateTime('YYYY-MM-DD', now);
+ if vFolder <> newFolder then vFolder:=newFolder;
+ {$I-}
+  MkDir(vFilePath+vFolder+'\');
+{$I+}
+
+ vFileName:=FormatDateTime('HH',now)+'.mjpeg';
+
+ if not TFile.Exists(vFilePath+vFolder+'\'+vFileName) then
+ begin
+ strmFile :=TBufferedFileStream.Create(vFilePath+vFolder+'\'+vFileName,fmCreate);
+ end else
+   begin
+   strmFile :=TBufferedFileStream.Create(vFilePath+vFolder+'\'+vFileName,fmOpenReadWrite);
+   strmFile.Position:=strmFile.Size;
+   end;
+
+
+ recording :=true;
+end;
+
+procedure TCamViewFrm.SaveFrame;
+var
+newFileName:String;
+newFolder:String;
+begin
+  //save current buffer contents..
+  if Assigned(strmFile) then
+    begin
+    //check for hour change
+     newFileName:=FormatDateTime('HH',now)+'.mjpeg';
+     if newFileName <> vFileName then
+       begin
+       //check for day change..
+         newFolder:=FormatDateTime('YYYY-MM-DD', now);
+         if vFolder <> newFolder then vFolder:=newFolder;
+          {$I-}
+           MkDir(vFilePath+vFolder+'\');
+          {$I+}
+
+         vFileName := newFileName;
+         strmFile.FlushBuffer;
+         strmFile.Free;
+          if not TFile.Exists(vFilePath+vFolder+'\'+vFileName) then
+           begin
+             strmFile :=TBufferedFileStream.Create(vFilePath+vFolder+'\'+vFileName,fmCreate);
+             end else
+              begin
+               strmFile :=TBufferedFileStream.Create(vFilePath+vFolder+'\'+vFileName,fmOpenReadWrite);
+               strmFile.Position:=strmFile.Size;
+               end;
+       end;
+    strmFile.Position:=strmFile.Size;//seek the end..
+    strmFile.WriteBuffer(imgSize,4);//write the frame size
+    strmFile.WriteBuffer(imgBuff[0],imgSize);//then the frame..
+    end;
+end;
+
+procedure TCamViewFrm.StopRecording;
+begin
+  //stop recording..
+  recording := false;
+  strmFile.FlushBuffer;
+  strmFile.Free;
+  strmFile := nil;
+
+end;
+
 procedure TCamViewFrm.btnDisconClick(Sender: TObject);
 begin
 sckCam.Close;
@@ -115,6 +226,17 @@ end;
 
 procedure TCamViewFrm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
+
+if recording then
+ begin
+if Assigned(strmFile) then
+begin
+strmFile.FlushBuffer;
+strmFile.Free;
+end;
+ end;
+
+
  //free cam stream
  try
  sckCam.Close;
@@ -180,6 +302,8 @@ begin
              jpg.LoadFromStream(CamStrm);
              imgCam.Picture.Assign(jpg);
              haveImage:=true;
+             if recording then SaveFrame;
+
 
            except on e:exception do
              begin
@@ -197,8 +321,6 @@ begin
         end;
      end;
     end;
-
-
 end;
 
 procedure TCamViewFrm.sckCamError(Sender: TObject);

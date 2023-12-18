@@ -1,7 +1,7 @@
 object CamViewFrm: TCamViewFrm
   Left = 0
   Top = 0
-  Caption = 'NARDS: Cam Viewer'
+  Caption = 'ESP Cam :'
   ClientHeight = 489
   ClientWidth = 628
   Color = clBtnFace
@@ -10,7 +10,7 @@ object CamViewFrm: TCamViewFrm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
-  Position = poScreenCenter
+  Position = poDefault
   OnClose = FormClose
   OnCreate = FormCreate
   TextHeight = 15
@@ -78,13 +78,22 @@ object CamViewFrm: TCamViewFrm
       OnClick = btnSaveClick
     end
     object chkDebug: TCheckBox
-      Left = 320
+      Left = 100
       Top = 10
       Width = 97
       Height = 17
       Caption = 'Show Debug'
       TabOrder = 3
       OnClick = chkDebugClick
+    end
+    object chkRecord: TCheckBox
+      Left = 336
+      Top = 10
+      Width = 97
+      Height = 17
+      Caption = 'Record'
+      TabOrder = 4
+      OnClick = chkRecordClick
     end
   end
   object mLog: TMemo

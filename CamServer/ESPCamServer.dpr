@@ -5,7 +5,8 @@ uses
   frmCamView in 'frmCamView.pas' {CamViewFrm},
   Vcl.Themes,
   Vcl.Styles,
-  frmCamServer in 'frmCamServer.pas' {CamServerFrm};
+  frmCamServer in 'frmCamServer.pas' {CamServerFrm},
+  frmReplay in 'frmReplay.pas' {ReplayFrm};
 
 {$R *.res}
 
