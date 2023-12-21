@@ -7,6 +7,19 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, OverbyteIcsWndControl, OverbyteIcsWSocket, Vcl.StdCtrls, Vcl.ExtCtrls,VCL.Imaging.jpeg, Vcl.ExtDlgs,
   OverbyteIcsWSocketS,System.IOUtils;
 
+
+
+
+type
+     TPacketHeader = packed record
+       PackIdent: array[0..3] of byte;
+       PackType : byte;
+       PackSize : INT32;
+     end;
+
+const
+    MAX_IMSIZE=500000;
+
 type
   TCamViewFrm = class(TForm)
     pnlTop: TPanel;
@@ -15,7 +28,6 @@ type
     btnClose: TButton;
     sckCam: TWSocket;
     mLog: TMemo;
-    btnDiscon: TButton;
     edBadPacks: TEdit;
     btnSave: TButton;
     dlgSavePic: TSavePictureDialog;
@@ -24,7 +36,6 @@ type
     procedure sckCamDataAvailable(Sender: TObject; ErrCode: Word);
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
-    procedure btnDisconClick(Sender: TObject);
     procedure sckCamSessionConnected(Sender: TObject; ErrCode: Word);
     procedure sckCamSessionClosed(Sender: TObject; ErrCode: Word);
     procedure sckCamError(Sender: TObject);
@@ -76,13 +87,13 @@ begin
  //one folder for each day..
  vFolder:=FormatDateTime('YYYY-MM-DD', now);
 
- SetLength(imgBuff,200000);
+ SetLength(imgBuff,MAX_IMSIZE);
  imgRecvd:=false;
  imgSize:=0;
  RecvCount:=0;
  CamStrm:=tMemoryStream.Create;
  mLog.Lines.Insert(0,'Ready..');
- sckCam.BufSize:=200000;
+ sckCam.BufSize:=MAX_IMSIZE;
  NumImgs:=0;
  BadPacks:=0;
  haveImage:=false;
@@ -130,8 +141,6 @@ if chkRecord.Checked then
   begin
   //start recording process..
    StartRecording;
-
-
   end else
     begin
     //stop recording..
@@ -216,14 +225,6 @@ begin
 
 end;
 
-procedure TCamViewFrm.btnDisconClick(Sender: TObject);
-begin
-sckCam.Close;
-RecvCount:=0;
-imgSize:=0;
-Close;
-end;
-
 procedure TCamViewFrm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
 
@@ -239,7 +240,9 @@ end;
 
  //free cam stream
  try
+ sckCam.Abort;
  sckCam.Close;
+ sckCam.WaitForClose;
  finally
    //
  end;
@@ -274,37 +277,47 @@ begin
       if Len>=sizeOf(imgSize) then
        move(imgBuff[0],imgSize,SizeOf(imgSize));
        RecvCount:=0;
-       if imgSize> 200000 then
+       if imgSize> MAX_IMSIZE then
          begin
-         if debugging then
-          mLog.Lines.Insert(0,'Image too big:'+IntToStr(imgSize));
+     //    if debugging then
+       //   mLog.Lines.Insert(0,'Image too big:'+IntToStr(imgSize));
           imgSize:=0;//throw it away..
          end else
        if debugging then
        mLog.Lines.Insert(0,'Recieving image:'+IntToStr(imgSize));
-    end;
+    end
+    else
+   begin
 
-  if imgSize>0 then
+   if imgSize>0 then
     begin
+      // if debugging then
+      //    mLog.Lines.Insert(0,'Requesting: '+IntToStr(imgSize-RecvCount));
+
      Len:=sckCam.Receive(@imgBuff[RecvCount],imgSize-RecvCount);
+     //  if debugging then
+     //     mLog.Lines.Insert(0,'Recieved: '+IntToStr(Len));
+
     if Len>0 then
      begin
      RecvCount:=Len+RecvCount;
+       if debugging then
+       mLog.Lines.Insert(0,'Recieved image chunk:'+IntToStr(Len));
+
       if (RecvCount = imgSize) then
         begin
+       if debugging then
+          mLog.Lines.Insert(0,'Recieved image:'+IntToStr(imgSize));
          CamStrm.SetSize(imgSize);
          CamStrm.Position:=0;
          CamStrm.Write(imgBuff[0],imgSize);
          CamStrm.Position:=0;
            try
              jpg:=tJpegImage.Create;
-
              jpg.LoadFromStream(CamStrm);
              imgCam.Picture.Assign(jpg);
              haveImage:=true;
              if recording then SaveFrame;
-
-
            except on e:exception do
              begin
               mLog.Lines.Insert(0,e.Message);
@@ -319,8 +332,22 @@ begin
              imgSize:=0;
              RecvCount:=0;
         end;
+     end else
+       begin
+       //if debugging then
+         // mLog.Lines.Insert(0,'dropping : len less than 0: '+IntToStr(Len));
+       // imgSize :=0;
+      //  RecvCount :=0;
+
+       end;
+    end else
+     begin
+       if debugging then
+          mLog.Lines.Insert(0,'dropping : image size less than 0: '+IntToStr(imgSize));
+     imgSize :=0;
+     RecvCount :=0;
      end;
-    end;
+      end;
 end;
 
 procedure TCamViewFrm.sckCamError(Sender: TObject);
@@ -336,7 +363,7 @@ end;
 procedure TCamViewFrm.sckCamSessionClosed(Sender: TObject; ErrCode: Word);
 begin
 mLog.Lines.Insert(0,'Disconnected..');
-Close;
+//Close;
 end;
 
 procedure TCamViewFrm.sckCamSessionConnected(Sender: TObject; ErrCode: Word);

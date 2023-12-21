@@ -2,8 +2,8 @@ object CamViewFrm: TCamViewFrm
   Left = 0
   Top = 0
   Caption = 'ESP Cam :'
-  ClientHeight = 489
-  ClientWidth = 628
+  ClientHeight = 506
+  ClientWidth = 618
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,27 +17,30 @@ object CamViewFrm: TCamViewFrm
   object imgCam: TImage
     Left = 0
     Top = 41
-    Width = 628
-    Height = 318
+    Width = 618
+    Height = 336
     Align = alClient
     Stretch = True
-    ExplicitLeft = 88
-    ExplicitTop = 104
-    ExplicitWidth = 105
-    ExplicitHeight = 105
+    ExplicitWidth = 628
+    ExplicitHeight = 320
   end
   object pnlTop: TPanel
     Left = 0
     Top = 0
-    Width = 628
+    Width = 618
     Height = 41
     Align = alTop
     TabOrder = 0
+    ExplicitWidth = 616
+    DesignSize = (
+      618
+      41)
     object edBadPacks: TEdit
       Left = 529
       Top = 12
       Width = 74
       Height = 23
+      Anchors = [akTop, akRight]
       ReadOnly = True
       TabOrder = 0
       Text = '0'
@@ -45,36 +48,32 @@ object CamViewFrm: TCamViewFrm
   end
   object pblBottom: TPanel
     Left = 0
-    Top = 448
-    Width = 628
+    Top = 465
+    Width = 618
     Height = 41
     Align = alBottom
     TabOrder = 1
+    ExplicitWidth = 616
+    DesignSize = (
+      618
+      41)
     object btnClose: TButton
       Left = 528
       Top = 8
       Width = 75
       Height = 25
+      Anchors = [akTop, akRight]
       Caption = 'Close'
       TabOrder = 0
       OnClick = btnCloseClick
     end
-    object btnDiscon: TButton
-      Left = 8
-      Top = 6
-      Width = 75
-      Height = 25
-      Caption = 'Disconnect'
-      TabOrder = 1
-      OnClick = btnDisconClick
-    end
     object btnSave: TButton
-      Left = 447
+      Left = 10
       Top = 8
       Width = 75
       Height = 25
       Caption = 'Save'
-      TabOrder = 2
+      TabOrder = 1
       OnClick = btnSaveClick
     end
     object chkDebug: TCheckBox
@@ -83,24 +82,24 @@ object CamViewFrm: TCamViewFrm
       Width = 97
       Height = 17
       Caption = 'Show Debug'
-      TabOrder = 3
+      TabOrder = 2
       OnClick = chkDebugClick
     end
     object chkRecord: TCheckBox
-      Left = 336
+      Left = 200
       Top = 10
       Width = 97
       Height = 17
       Caption = 'Record'
-      TabOrder = 4
+      TabOrder = 3
       OnClick = chkRecordClick
     end
   end
   object mLog: TMemo
     Left = 0
-    Top = 359
-    Width = 628
-    Height = 89
+    Top = 377
+    Width = 618
+    Height = 88
     Align = alBottom
     Color = clBlack
     Font.Charset = DEFAULT_CHARSET
@@ -112,6 +111,7 @@ object CamViewFrm: TCamViewFrm
     ScrollBars = ssVertical
     TabOrder = 2
     StyleElements = [seBorder]
+    ExplicitWidth = 616
   end
   object sckCam: TWSocket
     LineEnd = #13#10
