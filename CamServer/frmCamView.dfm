@@ -2,8 +2,8 @@ object CamViewFrm: TCamViewFrm
   Left = 0
   Top = 0
   Caption = 'ESP Cam :'
-  ClientHeight = 506
-  ClientWidth = 618
+  ClientHeight = 393
+  ClientWidth = 419
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,8 +17,8 @@ object CamViewFrm: TCamViewFrm
   object imgCam: TImage
     Left = 0
     Top = 41
-    Width = 618
-    Height = 336
+    Width = 419
+    Height = 231
     Align = alClient
     Stretch = True
     ExplicitWidth = 628
@@ -27,16 +27,16 @@ object CamViewFrm: TCamViewFrm
   object pnlTop: TPanel
     Left = 0
     Top = 0
-    Width = 618
+    Width = 419
     Height = 41
     Align = alTop
     TabOrder = 0
-    ExplicitWidth = 616
+    ExplicitWidth = 450
     DesignSize = (
-      618
+      419
       41)
     object edBadPacks: TEdit
-      Left = 529
+      Left = 330
       Top = 12
       Width = 74
       Height = 23
@@ -44,21 +44,23 @@ object CamViewFrm: TCamViewFrm
       ReadOnly = True
       TabOrder = 0
       Text = '0'
+      ExplicitLeft = 361
     end
   end
   object pblBottom: TPanel
     Left = 0
-    Top = 465
-    Width = 618
+    Top = 352
+    Width = 419
     Height = 41
     Align = alBottom
     TabOrder = 1
-    ExplicitWidth = 616
+    ExplicitTop = 623
+    ExplicitWidth = 450
     DesignSize = (
-      618
+      419
       41)
     object btnClose: TButton
-      Left = 528
+      Left = 329
       Top = 8
       Width = 75
       Height = 25
@@ -66,6 +68,7 @@ object CamViewFrm: TCamViewFrm
       Caption = 'Close'
       TabOrder = 0
       OnClick = btnCloseClick
+      ExplicitLeft = 360
     end
     object btnSave: TButton
       Left = 10
@@ -77,7 +80,7 @@ object CamViewFrm: TCamViewFrm
       OnClick = btnSaveClick
     end
     object chkDebug: TCheckBox
-      Left = 100
+      Left = 97
       Top = 10
       Width = 97
       Height = 17
@@ -97,9 +100,9 @@ object CamViewFrm: TCamViewFrm
   end
   object mLog: TMemo
     Left = 0
-    Top = 377
-    Width = 618
-    Height = 88
+    Top = 272
+    Width = 419
+    Height = 80
     Align = alBottom
     Color = clBlack
     Font.Charset = DEFAULT_CHARSET
@@ -111,7 +114,7 @@ object CamViewFrm: TCamViewFrm
     ScrollBars = ssVertical
     TabOrder = 2
     StyleElements = [seBorder]
-    ExplicitWidth = 616
+    ExplicitTop = 273
   end
   object sckCam: TWSocket
     LineEnd = #13#10
@@ -122,7 +125,7 @@ object CamViewFrm: TCamViewFrm
     LocalPort = '0'
     SocksLevel = '5'
     ExclusiveAddr = False
-    ComponentOptions = []
+    ComponentOptions = [wsoTcpNoDelay]
     ListenBacklog = 15
     OnDataAvailable = sckCamDataAvailable
     OnSessionClosed = sckCamSessionClosed
@@ -140,5 +143,12 @@ object CamViewFrm: TCamViewFrm
     Title = 'Same Pic'
     Left = 504
     Top = 256
+  end
+  object tmrTimedOut: TTimer
+    Enabled = False
+    Interval = 60000
+    OnTimer = tmrTimedOutTimer
+    Left = 368
+    Top = 152
   end
 end

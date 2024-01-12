@@ -43,7 +43,7 @@ object CamServerFrm: TCamServerFrm
       Width = 80
       Height = 23
       TabOrder = 1
-      Text = '5001'
+      Text = '50001'
     end
     object btnPlayback: TButton
       Left = 364
@@ -75,7 +75,7 @@ object CamServerFrm: TCamServerFrm
     LocalPort = '0'
     SocksLevel = '5'
     ExclusiveAddr = False
-    ComponentOptions = []
+    ComponentOptions = [wsoTcpNoDelay]
     ListenBacklog = 15
     OnSessionAvailable = sckServerSessionAvailable
     SocketErrs = wsErrTech
