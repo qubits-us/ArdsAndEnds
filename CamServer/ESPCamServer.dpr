@@ -6,7 +6,8 @@ uses
   Vcl.Themes,
   Vcl.Styles,
   frmCamServer in 'frmCamServer.pas' {CamServerFrm},
-  frmReplay in 'frmReplay.pas' {ReplayFrm};
+  frmReplay in 'frmReplay.pas' {ReplayFrm},
+  uCamServerData in 'uCamServerData.pas';
 
 {$R *.res}
 
