@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiUdp.h>
 #include <esp_camera.h>
 #include <Preferences.h>
 #include <HTTPClient.h>
@@ -8,13 +9,13 @@
 
 //#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
 //#define CAMERA_MODEL_ESP_EYE // Has PSRAM
-#define CAMERA_MODEL_ESP32S3_EYE // Has PSRAM
+//#define CAMERA_MODEL_ESP32S3_EYE // Has PSRAM
 //#define CAMERA_MODEL_M5STACK_PSRAM // Has PSRAM
 //#define CAMERA_MODEL_M5STACK_V2_PSRAM // M5Camera version B Has PSRAM
 //#define CAMERA_MODEL_M5STACK_WIDE // Has PSRAM
 //#define CAMERA_MODEL_M5STACK_ESP32CAM // No PSRAM
 //#define CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
-//#define CAMERA_MODEL_AI_THINKER // Has PSRAM
+#define CAMERA_MODEL_AI_THINKER // Has PSRAM
 //#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
 //#define CAMERA_MODEL_XIAO_ESP32S3 // Has PSRAM
 // ** Espressif Internal Boards **
@@ -36,7 +37,7 @@
 #define OB_LED -1
 #endif
 
-
+#define FLASH_PIN 4 //ai thinker..
 
 #define JPG_CHUNK_SIZE  1429 //vodo
 #define OTA_CHUNK_SIZE  4096
@@ -71,6 +72,9 @@
 #define STATE_FRAME  7
 #define STATE_CHUNK  8
 
+#define DISCV_START 0
+#define DISCV_CHECK 1
+
 // firmware version..
 #define CAM_VER_LO 0
 #define CAM_VER_HI 1
@@ -82,6 +86,15 @@
 #define RECV_HEADER 0
 #define RECV_EXTRA  1
 
+#define UDP_PORT   50000
+
+
+//discovery packet..
+struct __attribute__((__packed__)) PacketDiscv {
+  byte      Ident[2];
+  uint16_t  Port;
+  byte      Ip[20];
+};
 
 //packet header..
 struct __attribute__((__packed__)) PacketHdr {
@@ -154,16 +167,18 @@ camera_config_t config;
 Preferences prefs;
 //connection to server
 WiFiClient client;
+//listens for discovery packets..
+WiFiUDP udp;
 
 //System state..
 byte stateSys = STATE_WIFI;
+//Discovery state
+byte stateDiscv = DISCV_START;
 
 
-const char *ssid = "yourssid";
-const char *password = "yourpassword";
+const char *ssid = "jelly";
+const char *password = "2023jammified";
 
-char *host = "192.168.0.24";  // IP of cam server
-//char *host = "192.168.0.22";  // IP of cam server
 
 //millis timer to limit cap rate..
 unsigned long lastCap = 0;
@@ -175,9 +190,9 @@ unsigned long lastGo = 0;
 unsigned long intervalGo = 15000ul;
 
 //your webistie file containing current server ip..
-char *myWebsiteFile ="http://www.yourwebsite.com/h/eggs.dat\n";
+char *myWebsiteFile ="http://www.qubits.us/stuff/eggs.dat\n";
 // ip address of server, stored using preferences..
-char serverIP[20] ={'1','9','2','.','1','6','8','.','0','.','1','0','\n'};
+char serverIP[20] ={'1','9','2','.','1','6','8','.','0','.','9','9','\n'};
 //server port..
 int port = 50001;              
 //camnumber stored in prefs..
@@ -198,6 +213,7 @@ PacketIdent ident;
 PacketSync syncp;
 PacketJpgBegin jpgBegin;
 PacketSensor sensorPack;
+PacketDiscv discvPack;
 
 int recvCount = 0;
 int sentCount = 0;
@@ -216,10 +232,11 @@ int intervalBlink = 1000;
 bool syncSent = false;
 bool identSent = false;
 
-bool debugInfo = false;
+bool debugInfo = true;
 int enable = 1;
 
 int noActivity = 0;
+int badConnCnt = 0;
 
 
 void setup(void) {
@@ -251,7 +268,11 @@ void setup(void) {
   IPAddress ip;
   if (strlen(tmpBytes)>0){
    if (ip.fromString(tmpBytes)){
-       strncpy(serverIP,tmpBytes,sizeof(serverIP));                    
+       strncpy(serverIP,tmpBytes,sizeof(serverIP));     
+       if (debugInfo){
+        Serial.print("loaded server ip: ");
+        Serial.println(serverIP);
+       }               
       } 
   }
 }
@@ -284,19 +305,21 @@ void loop(void) {
 
   unsigned long now = millis();
   
-  if (OB_LED > 0){
-  if (now-lastBlink>=intervalBlink){
+ if (OB_LED > 0) {
+  if (now - lastBlink >= intervalBlink) {
     lastBlink = now;
-    digitalWrite(OB_LED,!digitalRead(OB_LED));
-    noActivity++;
-    if (noActivity > 99) {
-      client.stop();
-      Serial.println("No activity for 100 seconds..");
-      Serial.print("Heap avail: ");
-      Serial.println(ESP.getFreeHeap());
-      Serial.print("Psram avail: ");
-      Serial.println(ESP.getFreePsram());
-      noActivity = 0;
+    digitalWrite(OB_LED, !digitalRead(OB_LED));
+    if (WiFi.status() == WL_CONNECTED && client.connected()) {
+      noActivity++;
+      if (noActivity > 99) {
+        client.stop();
+        Serial.println("No activity for 100 seconds..");
+        Serial.print("Heap avail: ");
+        Serial.println(ESP.getFreeHeap());
+        Serial.print("Psram avail: ");
+        Serial.println(ESP.getFreePsram());
+        noActivity = 0;
+      }
     }
   }
 }
@@ -312,13 +335,15 @@ void loop(void) {
     case STATE_WIFI:  //connect wifi
       if (WiFi.status() != WL_CONNECTED) {
         if (now - lastGo >= intervalGo) {
+          intervalGo = 15000ul;
           lastGo = now;
+          noActivity = 0;
           WiFi.disconnect();
           WiFi.begin(ssid, password);
           Serial.println("Wfifi connecting..");
         }
       } else {
-        stateSys = STATE_CLI;
+        stateSys = STATE_IP;
         Serial.println("");
         Serial.print("Connected to ");
         Serial.println(ssid);
@@ -328,25 +353,53 @@ void loop(void) {
         Serial.println(WiFi.localIP());
         Serial.print("TX power:");
         Serial.println(WiFi.getTxPower());
+        intervalGo = 2000ul;
+      }
+      break;
+    case STATE_IP:  //get server ip..
+      if (now - lastGo >= intervalGo) {
+        intervalGo = 15000ul;
+        lastGo = now;        
+      if (WiFi.status() == WL_CONNECTED) {
+        if (debugInfo){
+          Serial.println("..IP Discovery..");
+        }
+        switch (stateDiscv){
+            case DISCV_START: if (StartDiscovery()){stateDiscv = DISCV_CHECK;} break;
+            case DISCV_CHECK: if (CheckDiscovery()){stateDiscv = DISCV_START; stateSys = STATE_CLI;
+              if (debugInfo){
+                Serial.print("Discovery completed New IP: ");
+                Serial.println(serverIP);
+                
+              }
+              } break;
+        } 
+      
+      } else
+      {
+       stateSys = STATE_WIFI;//reconnect wifi
+      }
       }
       break;
     case STATE_CLI:  //connect client
       if (now - lastGo >= intervalGo) {
         lastGo = now;
+        intervalGo = 15000ul;
+        noActivity = 0;
         if (WiFi.status() == WL_CONNECTED) {
           Serial.println("Connecting to server..");
           Serial.print("RSSI:");
           Serial.println(WiFi.RSSI());
           
-          if (client.connect(host, port)) {
+          if (client.connect(serverIP, port)) {
             Serial.println("Connected to cam server.");
              client.setNoDelay(true);
              client.setSocketOption(IPPROTO_TCP, TCP_NODELAY, &enable, sizeof(enable));
             identified = false;
             stateSys = STATE_IDENT;//identify..
-            //get ready for frame grabbing
             sentBytes = 0;
             stateFrame = 0;
+            intervalGo = 2000ul;
             if (fb) {esp_camera_fb_return(fb); fb = NULL;}
           } else Serial.println("Connection attempt failed..");
         } else{
@@ -358,6 +411,8 @@ void loop(void) {
     case STATE_IDENT:  //indentify
       if (now - lastGo >= intervalGo) {
         lastGo = now;
+        intervalGo = 30000ul;
+        noActivity = 0;
       if (!client.connected()) {
        stateSys = STATE_CLI;
       } else
@@ -394,6 +449,7 @@ void loop(void) {
     case STATE_SYNC:  //sync time with server..
       if (now - lastGo >= intervalGo) {
         lastGo = now;
+        intervalGo = 30000ul;
       if (!client.connected()) {
        stateSys = STATE_CLI;
       } else{
@@ -420,7 +476,11 @@ void loop(void) {
       break;
     case STATE_PAUSE:  //do nothing..
       if (now - lastGo >= intervalGo) {
+        intervalGo = 15000ul;
         lastGo = now;
+        if (debugInfo){
+          Serial.println("..Paused..");
+        }
       if (!client.connected()) {
        stateSys = STATE_CLI;
       }
@@ -440,8 +500,8 @@ void loop(void) {
     case STATE_CHUNK:  //send a frame chunk to server..
       if (client.connected()) {
         //send frame
-         if ( chunkFrame()) {if (debugInfo)Serial.println("Image sent..");} 
-        stateSys = STATE_PAUSE;
+         if ( chunkFrame()) {if (debugInfo)Serial.println("Image sent..");
+        stateSys = STATE_PAUSE;}
       } else stateSys = STATE_CLI;
       break;
       
@@ -582,7 +642,9 @@ struct tm tm;
     }
     struct timeval now = { .tv_sec = t,
                            .tv_usec = 0 };
-    stateSys = STATE_FRAME;//start sending jpegs..            
+    if (stateSys == STATE_SYNC)                       
+    stateSys = STATE_FRAME;//start sending jpegs..   
+    intervalGo = 2000ul;         
     settimeofday(&now, NULL);  
     if (debugInfo) {Serial.print("\nSystem time now:");
     TimePrint();}
@@ -612,6 +674,7 @@ void SetIdent(PacketIdent idp){
   
   identified = true;
   stateSys = STATE_SYNC;
+  intervalGo = 2000ul;
 }
 
 void SetConfig(PacketSensor ps){
@@ -876,12 +939,12 @@ bool beginFrame() {
   bool result = false;
   int scnt = 0;
   //if frame buffer still lives, give it back..
-  if (fb != NULL) {
+  if (fb != NULL ) {
     esp_camera_fb_return(fb);
     fb = NULL;
   }
   fb = esp_camera_fb_get();
-  if (fb != NULL) {
+  if (fb != NULL ) {
     hdr.Command = CMD_JPG_BEGIN;
     hdr.DataSize = sizeof(PacketJpgBegin);
     jpgBegin.imSize = fb->len;
@@ -899,12 +962,17 @@ bool beginFrame() {
     }
     if (scnt == sentCount) result = true;
     sentBytes = 0;
+  } else {
+    if (debugInfo){
+      Serial.println("..failed to get frame buffer..");
+    }
   }
   return result;
 }
 
 bool chunkFrame(){
   bool result = false;
+ if (fb != NULL){ 
  if (fb->len-sentBytes>=JPG_CHUNK_SIZE){    
       if (((fb->len-sentBytes)-JPG_CHUNK_SIZE)<JPG_CHUNK_SIZE){
         //last packet can be a bit bigger..
@@ -961,6 +1029,7 @@ bool chunkFrame(){
            if (sentCount>0){
               sentCount-=sizeof(PacketHdr);
               sentBytes+=sentCount;
+              stateSys = STATE_PAUSE;
            }
       }
      } else {
@@ -1015,7 +1084,14 @@ bool chunkFrame(){
            Serial.println(sentCount);
            }
         }     
-     }  
+     } 
+ } else {
+    stateSys = STATE_PAUSE;
+    Serial.println("invalid frame buffer..");
+ } 
+     
+     
+     
      
    return result;  
      
@@ -1072,7 +1148,7 @@ bool initCamera() {
   }
   sensor_t * s = esp_camera_sensor_get();
   // initial sensors are flipped vertically and colors are a bit saturated
-  s->set_vflip(s, 1); // flip it back
+ // s->set_vflip(s, 1); // flip it back
   s->set_brightness(s, 1); // up the brightness just a bit
   s->set_saturation(s, 0); // lower the saturation
   
@@ -1112,6 +1188,85 @@ bool CheckServerIP(){
         }
         http.end();    
         return result;
+}
+
+bool StartDiscovery(){
+  bool result = false;
+  if (udp.begin(UDP_PORT)){
+ if (debugInfo) {  
+  Serial.print("listening on udp port: ");
+  Serial.println(UDP_PORT);
+ }
+  result = true;
+  }
+  return result;
+}
+
+bool CheckDiscovery() {
+  bool result = false;
+  //char newIP[20];
+  if (udp.parsePacket()) {
+    //new packet..
+    memset(inBuff,0,sizeof(inBuff));//empty..
+    int recv = udp.read(inBuff, sizeof(inBuff));//fill
+    if (recv > 0) {
+      if (recv == sizeof(discvPack)) {
+      if (inBuff[0] == IDENT_LO && inBuff[1] == IDENT_HI) {
+        memcpy((uint8_t *)&discvPack, inBuff, recv);
+        //validate ip..
+        IPAddress ip;
+             prefs.begin("esp-cam", false);
+        if (ip.fromString((const char*)&discvPack.Ip)) {
+          result = true;
+          
+         if (memcmp(serverIP,discvPack.Ip,sizeof(serverIP)) != 0){ 
+          strncpy(serverIP, (const char*)&discvPack.Ip, sizeof(serverIP));
+             prefs.putBytes("ServerIP", serverIP, sizeof(serverIP));
+         }
+          port = discvPack.Port;
+        } else {
+          ScrambledEggs((char*)&discvPack.Ip, sizeof(discvPack.Ip), true);
+          if (ip.fromString((const char*)&discvPack.Ip)) {
+            result = true;
+         if (memcmp(serverIP,discvPack.Ip,sizeof(serverIP)) != 0){ 
+            strncpy(serverIP, (const char*)&discvPack.Ip, sizeof(serverIP));
+             prefs.putBytes("ServerIP", serverIP, sizeof(serverIP));
+         }
+            port = discvPack.Port;
+          }
+        }
+        prefs.end();
+       } else {
+          if (debugInfo){
+            Serial.println("Bad Ident");
+          }
+       }
+      } else {
+        if (debugInfo){
+          Serial.print("Invalid size, expecting: ");
+          Serial.print(sizeof(discvPack));
+          Serial.print(" received: ");
+          Serial.println(recv);
+        }
+      }
+    } else {
+        if (debugInfo){
+          Serial.println("nothing received..");
+        }
+    }
+  } else {
+      if (debugInfo){
+        Serial.println("no packets..");
+      }
+  }
+  return result;
+}
+
+bool StopDiscovery(){
+ bool result = false; 
+  udp.stop();
+  result = true;
+ return result; 
 }
 
 
