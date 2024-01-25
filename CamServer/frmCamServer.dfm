@@ -1,7 +1,8 @@
 object CamServerFrm: TCamServerFrm
   Left = 0
   Top = 0
-  BorderStyle = bsToolWindow
+  BorderIcons = [biSystemMenu, biMinimize]
+  BorderStyle = bsSingle
   Caption = 'ESP Cam Server'
   ClientHeight = 87
   ClientWidth = 450
@@ -11,6 +12,7 @@ object CamServerFrm: TCamServerFrm
   Font.Height = -12
   Font.Name = 'Segoe UI'
   Font.Style = []
+  Menu = MainMenu1
   OnClose = FormClose
   OnCreate = FormCreate
   TextHeight = 15
@@ -37,9 +39,9 @@ object CamServerFrm: TCamServerFrm
       TabOrder = 0
       OnClick = btnCtrlClick
     end
-    object txtPort: TEdit
+    object edPort: TEdit
       Left = 144
-      Top = 8
+      Top = 7
       Width = 80
       Height = 23
       TabOrder = 1
@@ -79,7 +81,57 @@ object CamServerFrm: TCamServerFrm
     ListenBacklog = 15
     OnSessionAvailable = sckServerSessionAvailable
     SocketErrs = wsErrTech
-    Left = 272
+    Left = 408
+    Top = 40
+  end
+  object MainMenu1: TMainMenu
+    Left = 360
+    Top = 40
+    object File1: TMenuItem
+      Caption = '&File'
+      object Exit1: TMenuItem
+        Caption = '&Exit'
+        OnClick = Exit1Click
+      end
+    end
+    object Cams1: TMenuItem
+      Caption = '&Cams'
+      Visible = False
+      object List1: TMenuItem
+        Caption = '&List'
+      end
+      object Firmwares1: TMenuItem
+        Caption = 'F&irmwares'
+      end
+    end
+    object Help1: TMenuItem
+      Caption = '&Help'
+      object About1: TMenuItem
+        Caption = '&About'
+        OnClick = About1Click
+      end
+    end
+  end
+  object sckDiscv: TWSocket
+    LineEnd = #13#10
+    Port = '50000'
+    Proto = 'udp'
+    LocalAddr = '0.0.0.0'
+    LocalAddr6 = '::'
+    LocalPort = '0'
+    SocksLevel = '5'
+    ExclusiveAddr = False
+    ComponentOptions = []
+    ListenBacklog = 15
+    SocketErrs = wsErrTech
+    Left = 312
+    Top = 40
+  end
+  object tmrDiscv: TTimer
+    Enabled = False
+    Interval = 10000
+    OnTimer = tmrDiscvTimer
+    Left = 232
     Top = 40
   end
 end

@@ -735,28 +735,8 @@ RecordFrame := true;
 end;
 
 procedure TCamViewFrm.tmrTimedOutTimer(Sender: TObject);
-var
-amnt:integer;
 begin
-//not getting this image..
-tmrTimedOut.Enabled := false;
-amnt:=sckCam.Receive(@inBuff[0],MAX_IMSIZE);
-sckCam.Flush;
-
-
-if debugging then
-mLog.Lines.Insert(0,'!!Packet Timed Out!! tossing:'+intToStr(amnt));
-
-RecvCount :=0;
-RecvState :=0;
-Inc(badPacks);
-edBadPacks.Text:=IntToStr(badPacks);
-//request next image..
-hdr.PackIdent[0] := IDENT_LO;
-hdr.PackIdent[1] := IDENT_HI;
-hdr.Command:=CMD_JPG_BEGIN;
-hdr.DataSize :=0;
-sckCam.Send(@hdr,sizeof(TPacketHeader));
+close;
 end;
 
 
@@ -802,6 +782,8 @@ begin
    if mLog.Lines.Count > 999 then mLog.Lines.Clear;
    mLog.Lines.Insert(0,'*** Data Avail Error Code:'+IntToStr(ErrCode)+' Current Recv Count:'+IntToStr(RecvCount)+' ****');
    end;
+
+   tmrTimedOut.Enabled := false;
 
 if RecvState = 0 then
   begin
@@ -898,6 +880,7 @@ if RecvState = 0 then
        RecvState :=0;
       end else tmrTimedOut.Enabled:=true;
     end;
+   tmrTimedOut.Enabled := true;
 end;
 
 
