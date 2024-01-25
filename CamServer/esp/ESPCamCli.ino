@@ -176,8 +176,8 @@ byte stateSys = STATE_WIFI;
 byte stateDiscv = DISCV_START;
 
 
-const char *ssid = "jelly";
-const char *password = "2023jammified";
+const char *ssid = "yourssid";
+const char *password = "your pass";
 
 
 //millis timer to limit cap rate..
@@ -190,7 +190,7 @@ unsigned long lastGo = 0;
 unsigned long intervalGo = 15000ul;
 
 //your webistie file containing current server ip..
-char *myWebsiteFile ="http://www.qubits.us/stuff/eggs.dat\n";
+char *myWebsiteFile ="http://www.yourwebsite.com/h/eggs.dat\n";
 // ip address of server, stored using preferences..
 char serverIP[20] ={'1','9','2','.','1','6','8','.','0','.','9','9','\n'};
 //server port..
