@@ -71,7 +71,7 @@ bool AsyncMorse::MorseString(char *text, bool looped) {
   loop_morse = looped;
   bool loaded = false;
   if (strlen(text) > 0) {
-    Serial.println(strlen(text));
+  //  Serial.println(strlen(text));
     mc_idx = 0;
     mc_done = false;
     mc_state = 0;
@@ -81,20 +81,20 @@ bool AsyncMorse::MorseString(char *text, bool looped) {
     ZeroMorseBuff();
     char ch = *text;
     int count = 0;
-    while (ch != NULL)
+    while (ch != '\0')
     {
       morseBuff[count] = ch;
       count++;
-      *text++;
+      text++;
       ch = *text;
     }
     loaded = true;
     morse_loaded = true;
     mc_count = count;
-    Serial.print("chars loaded: ");
-    Serial.println(count);
-    Serial.println(morseBuff);
-    Serial.print(morseBuff[mc_idx]);
+  //  Serial.print("chars loaded: ");
+  //  Serial.println(count);
+  //  Serial.println(morseBuff);
+   // Serial.print(morseBuff[mc_idx]);
     morse_done = false;
   }
   return loaded;
@@ -103,6 +103,7 @@ bool AsyncMorse::MorseString(char *text, bool looped) {
 
 
 void AsyncMorse::MorseLoop() {
+  if (Morse_Pin < 2 ) return; // no pin
   if (!morse_done) {
     if (mc_done) {
       if (mc_idx < mc_count) {
@@ -113,8 +114,8 @@ void AsyncMorse::MorseLoop() {
           dd_done = true;
           dd_idx = 0;
           dd_state = 0;
-          Serial.println();
-          Serial.print(morseBuff[mc_idx]);
+     //     Serial.println();
+       //   Serial.print(morseBuff[mc_idx]);
           if (isalpha(morseBuff[mc_idx]))
           { if (isupper(morseBuff[mc_idx]))
             {
@@ -127,7 +128,7 @@ void AsyncMorse::MorseLoop() {
           } else if (isdigit(morseBuff[mc_idx])) {
             MorseChar(MorseChars[morseBuff[mc_idx] - '1' + 27], true);
           } else if (morseBuff[mc_idx] == ' ') {
-            Serial.println(":Space");
+      //      Serial.println(":Space");
             mc_state = 1;
             dd_start = millis();
             dd_dur = dot_dur * 3;
@@ -172,9 +173,9 @@ void AsyncMorse::MorseLoop() {
         mc_state = 0;
         dd_state = 0;
         morse_done = false;
-        Serial.println();
-        Serial.println("looping-");
-        Serial.print(morseBuff[mc_idx]);
+    //    Serial.println();
+   //     Serial.println("looping-");
+   //     Serial.print(morseBuff[mc_idx]);
       }
     }
   }
@@ -231,10 +232,10 @@ void AsyncMorse::DitDat(byte dit) {
     dd_start = millis();
     if (dit == 0) {
       dd_dur = dot_dur;
-      Serial.print(".");
+   //   Serial.print(".");
     } else {
       dd_dur = dot_dur * 3;
-      Serial.print("-");
+   //   Serial.print("-");
     }
   } else if (dd_state == 1) {
     if (millis() - dd_start >= dd_dur) {
