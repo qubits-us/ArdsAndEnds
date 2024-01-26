@@ -6,6 +6,7 @@
 #include <lwip/sockets.h>
 #include <IPAddress.h>
 #include <Update.h>
+#include <AsyncMorse.h>
 
 //#define CAMERA_MODEL_WROVER_KIT // Has PSRAM
 //#define CAMERA_MODEL_ESP_EYE // Has PSRAM
@@ -62,15 +63,16 @@
 #define CMD_OTA_END    16
 
 //System states..
-#define STATE_WIFI   0
-#define STATE_IP     1
-#define STATE_CLI    2
-#define STATE_IDENT  3
-#define STATE_SYNC   4
-#define STATE_OTA    5
-#define STATE_PAUSE  6
-#define STATE_FRAME  7
-#define STATE_CHUNK  8
+#define STATE_SOS    0
+#define STATE_WIFI   1
+#define STATE_IP     2
+#define STATE_CLI    3
+#define STATE_IDENT  4
+#define STATE_SYNC   5
+#define STATE_OTA    6
+#define STATE_PAUSE  7
+#define STATE_FRAME  8
+#define STATE_CHUNK  9
 
 #define DISCV_START 0
 #define DISCV_CHECK 1
@@ -175,10 +177,9 @@ byte stateSys = STATE_WIFI;
 //Discovery state
 byte stateDiscv = DISCV_START;
 
-
-const char *ssid = "yourssid";
-const char *password = "your pass";
-
+char ssid[20];
+char password[20];
+int knownAPs = 0;
 
 //millis timer to limit cap rate..
 unsigned long lastCap = 0;
@@ -190,7 +191,7 @@ unsigned long lastGo = 0;
 unsigned long intervalGo = 15000ul;
 
 //your webistie file containing current server ip..
-char *myWebsiteFile ="http://www.yourwebsite.com/h/eggs.dat\n";
+char myWebsiteFile[200];
 // ip address of server, stored using preferences..
 char serverIP[20] ={'1','9','2','.','1','6','8','.','0','.','9','9','\n'};
 //server port..
@@ -238,6 +239,15 @@ int enable = 1;
 int noActivity = 0;
 int badConnCnt = 0;
 
+//sos - serial config needed..
+char serInBuff[80];
+int  serInCnt = 0;
+byte serState = 0;
+
+AsyncMorse morse(OB_LED);
+
+
+
 
 void setup(void) {
   // serial for debug
@@ -261,11 +271,41 @@ void setup(void) {
   prefs.begin("esp-cam", false);
   char tmpBytes[40];
   int num;
+  IPAddress ip;
+  
+  num = prefs.getBytesLength("ssid");
+  if (num> 0 && num < 21){
+  prefs.getBytes("ssid",tmpBytes,20);
+    //validate..
+  if (strlen(tmpBytes)>0){
+       strncpy(ssid,tmpBytes,sizeof(ssid));  
+       knownAPs = 1;   
+       if (debugInfo){
+        Serial.print("loaded ssid: ");
+        Serial.println(ssid);
+       }               
+   }
+}
+
+  num = prefs.getBytesLength("password");
+  if (num> 0 && num < 21){
+  prefs.getBytes("password",tmpBytes,20);
+    //validate..
+  if (strlen(tmpBytes)>0){
+       strncpy(password,tmpBytes,sizeof(password));     
+       if (debugInfo){
+        Serial.print("loaded pass: ");
+        Serial.println(password);
+       }               
+    }
+}
+
+
+  
   num = prefs.getBytesLength("ServerIP");
   if (num> 0 && num < 21){
   prefs.getBytes("ServerIP",tmpBytes,20);
     //validate..
-  IPAddress ip;
   if (strlen(tmpBytes)>0){
    if (ip.fromString(tmpBytes)){
        strncpy(serverIP,tmpBytes,sizeof(serverIP));     
@@ -276,6 +316,8 @@ void setup(void) {
       } 
   }
 }
+
+
   camNum = prefs.getUChar("CamNum",99);
   
   unsigned int a = prefs.getUInt("CapInterval",100);
@@ -296,6 +338,10 @@ void setup(void) {
     Serial.print((char)ident.camId[i]);
   }
   Serial.println("");
+  
+  if (knownAPs > 0) stateSys = STATE_WIFI; else stateSys = STATE_SOS;
+  
+  
 }
 
 
@@ -305,7 +351,7 @@ void loop(void) {
 
   unsigned long now = millis();
   
- if (OB_LED > 0) {
+ if (OB_LED > 0 && stateSys != STATE_SOS) {
   if (now - lastBlink >= intervalBlink) {
     lastBlink = now;
     digitalWrite(OB_LED, !digitalRead(OB_LED));
@@ -332,15 +378,31 @@ void loop(void) {
 
 //enter main system state mahcine..
   switch (stateSys) {
+
+    case STATE_SOS:  //need some love.
+      if (CheckSerial()){
+        stateSys = STATE_WIFI;
+        badConnCnt = 0;
+      }
+      break;    
     case STATE_WIFI:  //connect wifi
       if (WiFi.status() != WL_CONNECTED) {
         if (now - lastGo >= intervalGo) {
           intervalGo = 15000ul;
           lastGo = now;
           noActivity = 0;
+          badConnCnt++;
           WiFi.disconnect();
           WiFi.begin(ssid, password);
           Serial.println("Wfifi connecting..");
+          //not a known and bad 10 tries, sos again
+          if (badConnCnt>10 && knownAPs == 0){
+            serState = 0;
+            stateSys = STATE_SOS;
+          } else{
+          WiFi.begin(ssid, password);
+          Serial.println("Wfifi connecting..");            
+          }
         }
       } else {
         stateSys = STATE_IP;
@@ -353,6 +415,15 @@ void loop(void) {
         Serial.println(WiFi.localIP());
         Serial.print("TX power:");
         Serial.println(WiFi.getTxPower());
+        //save it..
+        if (knownAPs==0){
+          knownAPs = 1;
+           prefs.begin("esp-cam", false);
+           prefs.putBytes("ssid",ssid,sizeof(ssid));
+           prefs.putBytes("password",password,sizeof(password));
+           prefs.end();
+        }
+        
         intervalGo = 2000ul;
       }
       break;
@@ -1268,6 +1339,56 @@ bool StopDiscovery(){
   result = true;
  return result; 
 }
+
+
+bool CheckSerial(){
+  bool result = false;
+  if (serState == 0){
+    Serial.println("Enter network SSID:");
+    morse.MorseString("SOS",true);
+    serState = 1;
+  }
+  if (Serial.available()){
+    char c = Serial.read();
+    if (c != '\n' && c != 13 && isalnum(c)){
+      serInBuff[serInCnt]= c;
+      serInCnt++;
+      if (serInCnt>sizeof(serInBuff)-2){
+        //potential overflow.. wrap it for now
+        serInCnt = 0;
+      }
+    } else
+      if (c == '\n'){
+        if (serState == 1){
+          if (serInCnt > 0){
+           serInBuff[serInCnt]=0;//terminate
+           memcpy(ssid,serInBuff,serInCnt);//got something..
+           serState = 2;
+           serInCnt = 0;
+           Serial.print("Enter network key for ");
+           Serial.print(ssid);Serial.println(":");
+         } 
+       } else
+       if (serState == 2){
+          if (serInCnt > 0){
+           serInBuff[serInCnt]=0;//terminate
+           memcpy(password,serInBuff,serInCnt);//got something..
+          } else memset(password,0,sizeof(password));//erase
+           serState = 0;
+           serInCnt = 0;
+           Serial.print("New credentials accepted ");
+           Serial.print(ssid);Serial.print(":");
+           Serial.println(password);
+           morse.MorseStop();
+           result = true;
+       } 
+      }
+  }
+  //pump our sos..
+  morse.MorseLoop();
+  return result;
+}
+
 
 
 void ScrambledEggs(char *ingrediants, int amount, bool eat)
