@@ -14,21 +14,36 @@
   The Zeros allow for it to start and return to a stopped state.
 
   Finishing the maze drops you right back into a new one..
+  improvements 2025.27.11 ~q
+   added splash screen.
+   added system state machine.
+   removed all delays.
+   added async back ground music.
+   added info screen, can turn music on/off and change song..
+   also has battery voltage and charge, currently not reporting properly
+   but should be fixed in the future??
+
 
   No AI was used or consulted during the creation of this software.. :P
   No warranties, no gaurantees..
   Coded with love..
   be it harm none, do as ye wish..
   have fun, code on.. ~q
-  https://github.com/qubits-us/ArdsAndEnds
+  www.github.com/qubits-us/
 
 */
 
+#include <Arduino.h>
 #include <M5GFX.h>
+#include <M5Unified.h>
 #include <Arduino_BMI270_BMM150.h>
 #include <stack>
+#include "Muzak.h"
 
-M5GFX display;
+
+NessoBattery *battery;
+
+#define TONE_PIN 11
 
 #define DIR_STOP 0
 #define DIR_UP 1
@@ -76,7 +91,7 @@ int8_t OPPS[9];
 int8_t MAZE[MAX_WIDTH][MAX_HEIGHT];
 //our stack of cells..
 std::stack<MazeCell> q;
-
+//need a gap to see outer walls..
 int gap = CellSize / 2;
 
 //IMU values
@@ -87,12 +102,66 @@ float xZero, yZero;
 //tilt threshold
 const float thresh = 0.10;
 
-//initial starting pos
+//initial starting pos, top right, exit is bottom left..
 int playerX = CellSize / 2 + PlayerSize / 2;
 int playerY = CellSize / 2 + PlayerSize / 2;
 
-bool mazeRed = false;
+unsigned long now, lastMove;
 bool debug = false;
+//maze speed, increase to 1000 when debugging..
+unsigned long delayMove = 200;
+enum statesSystem { state_Splash = 0,
+                    state_Maze = 1,
+                    state_Info = 2,
+                    state_Wait = 3,
+                    state_WaitBtn = 4,
+                    state_Launch = 5
+} stateSystem = state_Splash;
+
+statesSystem nextState = state_Maze;
+
+struct ScreenButton {
+  int x;
+  int y;
+  int w;
+  int h;
+};
+
+ScreenButton Buttons[2];
+
+unsigned long waitStart;
+unsigned long waitFor;
+
+unsigned long lastButton;
+unsigned long btnDebounce = 50;
+int lastBtnState = HIGH;
+
+unsigned long lastTouch;
+unsigned long touchDebounce = 100;
+
+
+
+
+//music player globals
+int Music_Tempo = 240;
+int Music_WholeNote = (60000 * 4) / Music_Tempo;
+int Music_Note;
+int Note_Divider = 0;
+int CurrNote = -2;
+bool NotePlaying = false;
+unsigned long NoteStart, NoteDuration;
+bool Music_Enabled = false;
+int Music_Song = 0;
+
+const int16_t MusicTempos[] = { 150,
+                                300,
+                                600,
+                                400,
+                                400,
+                                300,
+                                300 };
+
+
 
 //Creates the maze..
 void CreateMaze() {
@@ -111,7 +180,7 @@ void CreateMaze() {
   DY[S] = 1;
   DY[W] = 0;
   //initialize random..
-  randomSeed(analogRead(0));
+  randomSeed(analogRead(GROVE_IO_0));
   //out with the old..
   memset(&MAZE[0], 0, sizeof(MAZE));
   //shuffle the directions..
@@ -232,6 +301,7 @@ void DrawMaze(uint16_t color) {
   posy = 1;
   ey = 1;
   ex = CellSize;
+  M5.Display.fillScreen(TFT_BLACK);
   for (y = 0; y < MazeHeight; y++) {
     for (x = 0; x < MazeWidth; x++) {
       posx = (x * CellSize) + gap;
@@ -240,18 +310,18 @@ void DrawMaze(uint16_t color) {
       ex = posx + CellSize;
       //top
       if ((MAZE[x][y] & N) == 0)
-        display.drawLine(posx, posy, ex, ey, color);
+        M5.Display.drawLine(posx, posy, ex, ey, color);
       ey = posy + CellSize;
       ex = posx;
       //left
       if ((MAZE[x][y] & W) == 0)
-        display.drawLine(posx, posy, ex, ey, color);
+        M5.Display.drawLine(posx, posy, ex, ey, color);
       posy = posy + CellSize;
       ex = posx + CellSize;
       ey = posy;
       //bottom
       if ((MAZE[x][y] & S) == 0)
-        display.drawLine(posx, posy, ex, ey, color);
+        M5.Display.drawLine(posx, posy, ex, ey, color);
       posx += CellSize;
       ex = posx;
       ey = posy - CellSize;
@@ -261,117 +331,14 @@ void DrawMaze(uint16_t color) {
       } else {
         //right
         if ((MAZE[x][y] & E) == 0)
-          display.drawLine(posx, posy, ex, ey, color);
+          M5.Display.drawLine(posx, posy, ex, ey, color);
       }
     }
   }
 }
 
-//draw player into a new cell of the maze..
-//also checks for completion and creates new maze..
-void drawPlayer(uint16_t color) {
-  //are we done..
-  if (PlayerPos.x == MazeWidth - 1 && PlayerPos.y == MazeHeight - 1) {
-    //maze completed..
-    display.fillScreen(TFT_BLACK);
-    //speed check vars..
-    unsigned long start, end;
-    //how much ram free before..
-    Serial.printf("Starting heap Available: %d\n", ESP.getFreeHeap());
-    start = millis();
-    CreateMaze();
-    end = millis();
-    //how long..
-    Serial.printf("Maze Generation Completed Millis: %d\n", (end - start));
-    //subtract from above, loooks like about 356b, stays the same after
-    //multiple maze generations..
-    Serial.printf("Ending heap Available: %d\n", ESP.getFreeHeap());
-    //print it out to the serial monitor..
-    SerialPrintMaze();
-    //draw it on the screen..
-    DrawMaze(YELLOW);
-  } else {
-    //translate grid to screen cords..
-    playerX = (PlayerPos.x * CellSize) + (CellSize / 2) + (PlayerSize / 2) + gap;
-    playerY = (PlayerPos.y * CellSize) + (CellSize / 2) + (PlayerSize / 2) + gap;
-    //draw the player..
-    display.fillCircle(playerX, playerY, PlayerSize, color);
-  }
-}
-
-
-//Read the IMU accelerator and return a direction..
-int readIMU() {
-  //default to stopped
-  int result = DIR_STOP;
-  if (IMU.accelerationAvailable()) {
-    // read the IMU accel
-    float zValue;
-    IMU.readAcceleration(xValue, yValue, zValue);
-    if (debug) {
-      Serial.print("X:");
-      Serial.print(xValue);
-      Serial.print(" Y:");
-      Serial.print(yValue);
-    }
-
-    if (xValue < (xZero - thresh)) {
-      //left
-      result = DIR_LEFT;
-      if (debug) Serial.print(" Left");
-
-    } else if (xValue > (xZero + thresh)) {
-      //right
-      result = DIR_RIGHT;
-      if (debug) Serial.print(" Right");
-    }
-
-    if (result == DIR_STOP) {
-      if (yValue < (yZero - thresh)) {
-        //down
-        result = DIR_DWN;
-        if (debug) Serial.print(" Down");
-      } else if (yValue > (yZero + thresh)) {
-        //up
-        result = DIR_UP;
-        if (debug) Serial.print(" Up");
-      }
-    }
-  }
-
-  if (debug) {
-    if (result == DIR_STOP) Serial.print(" Stop");
-    Serial.println();
-  }
-  return result;
-}
-
-
-
-
-
-void setup() {
-  Serial.begin(115200);
-  delay(2000);  //nap
-  if (!IMU.begin()) {
-    Serial.println("Failed to init the IMU!!");
-    while (1)
-      ;  //stop
-  }
-  delay(2000);   //nap while imu warms up a bit..
-  float zValue;  //throw away..
-  IMU.readAcceleration(xZero, yZero, zValue);
-
-  Serial.println("**** Nesso Mazes ~q ****");
-  //hope nesso is laying flat.. :)
-  Serial.print("X zero:");
-  Serial.println(xZero);
-  Serial.print("Y zero:");
-  Serial.println(yZero);
-
-  display.begin();
-  display.setRotation(1);
-  display.fillScreen(TFT_BLACK);
+void LaunchMaze() {
+  M5.Display.fillScreen(TFT_BLACK);
   //speed check vars..
   unsigned long start, end;
   //how much ram free before..
@@ -388,16 +355,14 @@ void setup() {
   SerialPrintMaze();
   //draw it on the screen..
   DrawMaze(YELLOW);
+
+  stateSystem = state_Maze;
 }
 
-void loop() {
-
-
+//step the maze..
+void StepMaze() {
   int dir = readIMU();
   drawPlayer(WHITE);
-  //maze speed, slower for debug
-  if (debug) delay(1000);
-  else delay(200);
 
   // Check if the user's next move will intersect with a wall
   bool canMove = dir != DIR_STOP;
@@ -446,5 +411,388 @@ void loop() {
     drawPlayer(BLACK);
     PlayerPos.x = nextX;
     PlayerPos.y = nextY;
+    drawPlayer(WHITE);
+  }
+}
+
+
+
+//draw player into a new cell of the maze..
+//also checks for completion and creates new maze..
+void drawPlayer(uint16_t color) {
+  //are we done..
+  if (PlayerPos.x == MazeWidth - 1 && PlayerPos.y == MazeHeight - 1) {
+    LaunchMaze();
+  } else {
+    //translate grid to screen cords..
+    playerX = (PlayerPos.x * CellSize) + (CellSize / 2) + (PlayerSize / 2) + gap;
+    playerY = (PlayerPos.y * CellSize) + (CellSize / 2) + (PlayerSize / 2) + gap;
+    //draw the player..
+    M5.Display.fillCircle(playerX, playerY, PlayerSize, color);
+  }
+}
+
+
+//Read the IMU accelerator and return a direction..
+int readIMU() {
+  //default to stopped
+  int result = DIR_STOP;
+
+
+  if (IMU.accelerationAvailable()) {
+    float zValue;
+    IMU.readAcceleration(xValue, yValue, zValue);
+    if (debug) {
+      Serial.print("X:");
+      Serial.print(xValue);
+      Serial.print(" Y:");
+      Serial.print(yValue);
+    }
+
+    if (xValue < (xZero - thresh)) {
+      //left
+      result = DIR_LEFT;
+      if (debug) Serial.print(" Left");
+
+    } else if (xValue > (xZero + thresh)) {
+      //right
+      result = DIR_RIGHT;
+      if (debug) Serial.print(" Right");
+    }
+
+    if (result == DIR_STOP) {
+      if (yValue < (yZero - thresh)) {
+        //down
+        result = DIR_DWN;
+        if (debug) Serial.print(" Down");
+      } else if (yValue > (yZero + thresh)) {
+        //up
+        result = DIR_UP;
+        if (debug) Serial.print(" Up");
+      }
+    }
+  }
+
+  if (debug) {
+    if (result == DIR_STOP) Serial.print(" Stop");
+    Serial.println();
+  }
+  return result;
+}
+
+
+
+
+void setup() {
+  Serial.begin(115200);
+  while (!Serial)
+    ;
+
+  if (!IMU.begin()) {
+    Serial.println("IMU failed!!");
+    while (1)
+      ;
+  }
+
+  delay(2000);  //nap while imu warms up a bit..
+  float zValue;
+  IMU.readAcceleration(xZero, yZero, zValue);
+
+  Serial.println("**** Nesso Mazes ~q ****");
+  //hope nesso is laying flat.. :)
+  Serial.print("X zero:");
+  Serial.println(xZero);
+  Serial.print("Y zero:");
+  Serial.println(yZero);
+
+  auto cfg = M5.config();
+  M5.begin(cfg);
+  M5.Display.init();
+  M5.Display.setRotation(1);
+  M5.Display.fillScreen(TFT_BLACK);
+
+  //tried a few easy things..
+  battery = new NessoBattery();
+  //tried unified as well..
+  Serial.printf("Batt Level: %d\n", M5.Power.getBatteryLevel());
+  Serial.print("Batt Volts: ");
+  Serial.println(M5.Power.getBatteryVoltage());
+}
+
+void loop() {
+
+  now = millis();
+  M5.update();
+
+  lgfx::touch_point_t tp;
+  if (M5.Display.getTouch(&tp)) {
+    if (now - lastTouch >= touchDebounce) {
+      //got a touch..
+      lastTouch = now;
+      if (stateSystem == state_WaitBtn) {
+        //info screen is up, process touches..
+        CheckScreenTouch(tp.x, tp.y);
+      }
+    }
+  }
+
+  int b = M5.BtnA.wasClicked();
+  if (now - lastButton >= btnDebounce) {
+    if (b) {
+      //start debounce
+      lastButton = now;
+      //press and release buttton
+      switch (stateSystem) {
+        case state_Maze:
+          stateSystem = state_Info;
+          break;
+        case state_WaitBtn:
+          DrawMaze(YELLOW);
+          stateSystem = state_Maze;
+          break;
+      }
+    }
+  }
+
+  if (Music_Enabled) {  //play a tune..
+    Music_Tempo = MusicTempos[Music_Song];
+    Music_WholeNote = (60000 * 4) / Music_Tempo;
+    switch (Music_Song) {
+      case 0:
+        PlayMusic(furelise, sizeof(furelise) / sizeof(furelise[0]));
+        break;
+      case 1:
+        PlayMusic(minuet, sizeof(minuet) / sizeof(minuet[0]));
+        break;
+      case 2:
+        PlayMusic(cannon, sizeof(cannon) / sizeof(cannon[0]));
+        break;
+      case 3:
+        PlayMusic(odetojoy, sizeof(odetojoy) / sizeof(odetojoy[0]));
+        break;
+      case 4:
+        PlayMusic(brahmslullaby, sizeof(brahmslullaby) / sizeof(brahmslullaby[0]));
+        break;
+      case 5:
+        PlayMusic(starwars, sizeof(starwars) / sizeof(starwars[0]));
+        break;
+      case 6:
+        PlayMusic(imperialmarch, sizeof(imperialmarch) / sizeof(imperialmarch[0]));
+        break;
+    }
+  }
+
+  switch (stateSystem) {
+    case state_Maze:
+      if (now - lastMove >= delayMove) {
+        lastMove = now;
+        StepMaze();
+      }
+      break;
+    case state_Splash:
+      ScreenSplash();
+      break;
+    case state_Info:
+      ScreenInfo();
+      break;
+    case state_Wait:
+      if (now - waitStart >= waitFor) {
+        stateSystem = nextState;
+      }
+      break;
+    case state_Launch:
+      LaunchMaze();
+      break;
+  }
+  yield();
+}
+
+
+void ScreenSplash() {
+  int tw, th, tx, ty, sh, sw;
+  sh = M5.Display.height();
+  sw = M5.Display.width();
+  M5.Display.fillScreen(TFT_BLACK);
+  M5.Display.setTextSize(2);
+  th = M5.Display.fontHeight();
+  tw = M5.Display.textWidth("Nesso Mazes");
+  tx = (M5.Display.width() / 2) - (tw / 2);
+  ty = (M5.Display.height() / 2) - (th / 2);
+  CreateMaze();
+  DrawMaze(YELLOW);
+  M5.Display.fillRect(tx - 6, ty - 6, tw + 12, th + 12, BLACK);
+  M5.Display.drawRect(tx - 6, ty - 6, tw + 12, th + 12, YELLOW);
+  M5.Display.drawString("Nesso Mazes", tx, ty);
+  waitStart = now;
+  waitFor = 5000;
+  stateSystem = state_Wait;
+  nextState = state_Launch;
+}
+
+
+
+void ScreenInfo() {
+  int tw, th, tx, ty, gap, sh, sw, nw;
+
+  sh = M5.Display.height();
+  sw = M5.Display.width();
+
+  M5.Display.fillScreen(TFT_BLACK);
+  M5.Display.setTextSize(2);
+  M5.Display.setTextColor(WHITE, BLACK);
+  //x,y
+  tx = 10;
+  ty = 10;
+  gap = 2;
+  tw = M5.Display.textWidth("Music");
+  th = M5.Display.fontHeight();
+  M5.Display.drawRect(tx, ty, tw + 12, th + 12, YELLOW);
+  M5.Display.drawString("Music", tx + 6, ty + 6);
+  ty += th + 12 + gap;
+  M5.Display.drawRect(tx, ty, tw + 12, th + 24, YELLOW);
+  Buttons[0].x = tx;
+  Buttons[0].y = ty;
+  Buttons[0].w = tw + 12;
+  Buttons[0].h = th + 24;
+  if (Music_Enabled) {
+    nw = M5.Display.textWidth("On");
+    M5.Display.drawString("On", (tx + 6) + (nw / 2), ty + 12);
+  } else {
+    nw = M5.Display.textWidth("Off");
+    M5.Display.drawString("Off", (tx + 6) + (nw / 2), ty + 12);
+  }
+  tx += tw + 12 + gap;
+  ty = 10;
+  M5.Display.drawRect(tx, ty, tw + 12, th + 12, YELLOW);
+  M5.Display.drawString("Song", tx + 12, ty + 6);
+  ty += th + 12 + gap;
+  M5.Display.drawRect(tx, ty, tw + 12, th + 24, YELLOW);
+  Buttons[1].x = tx;
+  Buttons[1].y = ty;
+  Buttons[1].w = tw + 12;
+  Buttons[1].h = th + 24;
+  nw = M5.Display.textWidth("0");
+
+  M5.Display.drawNumber(Music_Song + 1, tx + (nw / 2) + (tw / 2), ty + 12);
+  tx += tw + 12 + gap;
+  ty = 10;
+  M5.Display.drawRect(tx, ty, tw + 12, th + 12, YELLOW);
+  M5.Display.drawString("BattV", tx + 6, ty + 6);
+  ty += th + 12 + gap;
+  M5.Display.drawRect(tx, ty, tw + 12, th + 24, YELLOW);
+
+  nw = M5.Display.textWidth("9.9");
+  M5.Display.drawFloat(battery->getVoltage(), 1, (tx) + (nw / 2), ty + 12);
+
+  tx = 10;
+  ty += th + 24 + gap;
+  M5.Display.drawRect(tx, ty, sw - (tx * 2), (sh - ty) - 10, YELLOW);
+  nw = (sw - (tx * 2)) - 4;
+  int cl = battery->getChargeLevel();
+  if (cl < 100) {
+    float multi = cl / 100.0;
+    nw = nw * multi;
+  }
+  M5.Display.fillRect(tx + 2, ty + 2, nw, (sh - ty) - 14, GREEN);
+  M5.Display.drawNumber(cl, (sw / 2) - (tw / 2) + 5, ty + 12);
+  stateSystem = state_WaitBtn;
+}
+
+bool TouchArea(int px, int py, int x, int y, int w, int h) {
+  bool result = false;
+  int x2 = x + w;
+  int y2 = y + h;
+  int touch_x = px;
+  int touch_y = py;
+  if ((touch_x >= x) && (touch_x <= x2) && (touch_y >= y) && (touch_y <= y2)) result = true;
+  if (debug) {
+    Serial.printf("X: %d , X1: %d, Y: %d, Y1: %d\n", touch_x, x, touch_y, y);
+    Serial.printf("Matched :%d", result);
+  }
+  return result;
+}
+
+void CheckScreenTouch(int tx, int ty) {
+  int nw;
+  //only have 1 screen to watch..
+
+  if (TouchArea(tx, ty, Buttons[0].x, Buttons[0].y, Buttons[0].w, Buttons[0].h)) {
+    //touch on button 1 - music on/off toggle
+    if (debug)
+      Serial.println("Button 1 touched..");
+
+    if (Music_Enabled) {
+      Music_Enabled = false;
+      noTone(TONE_PIN);
+      nw = M5.Display.textWidth("Off");
+      M5.Display.setTextColor(BLACK, BLACK);
+      M5.Display.drawString(" On", Buttons[0].x + 6 + (nw / 2), Buttons[0].y + 12);
+      M5.Display.setTextColor(WHITE, BLACK);
+      M5.Display.drawString("Off", Buttons[0].x + 6 + (nw / 2), Buttons[0].y + 12);
+    } else {
+      Music_Enabled = true;
+      nw = M5.Display.textWidth("On");
+      M5.Display.setTextColor(BLACK, BLACK);
+      M5.Display.drawString("Off", Buttons[0].x + 6 + (nw / 2), Buttons[0].y + 12);
+      M5.Display.setTextColor(WHITE, BLACK);
+      M5.Display.drawString(" On", Buttons[0].x + 6 + (nw / 2), Buttons[0].y + 12);
+    }
+
+  } else if (TouchArea(tx, ty, Buttons[1].x, Buttons[1].y, Buttons[1].w, Buttons[1].h)) {
+    //touch on button 2 - song button select
+    if (debug)
+      Serial.println("Button 2 touched..");
+    bool isEnabled = Music_Enabled;
+    Music_Enabled = false;
+    Music_Song++;
+    if (Music_Song > (sizeof(MusicTempos) / sizeof(MusicTempos[0])) - 1) Music_Song = 0;
+    CurrNote = -2;
+    Music_Enabled = isEnabled;
+    M5.Display.waitDisplay();
+    //remove old text..
+    M5.Display.fillRect(Buttons[1].x + 2, Buttons[1].y + 2, Buttons[1].w - 4, Buttons[1].h - 4, BLACK);
+    nw = M5.Display.textWidth("0");
+    M5.Display.setTextColor(WHITE, BLACK);
+    M5.Display.drawNumber(Music_Song + 1, Buttons[1].x + (nw / 2) + ((Buttons[1].w - 12) / 2), Buttons[1].y + 12);
+    M5.Display.display();
+  }
+}
+
+//async tone music player..
+void PlayMusic(const int16_t song[], int elements) {
+  static bool resting = false;
+  if (now - NoteStart >= NoteDuration) {
+    if (NotePlaying) {
+      if (!resting) {
+        noTone(TONE_PIN);
+      } else resting = false;
+      NotePlaying = false;
+      NoteStart = now;
+    } else {
+      CurrNote += 2;
+      if (CurrNote < (elements - 1)) {
+        Music_Note = song[CurrNote];
+        Note_Divider = song[CurrNote + 1];
+        if (Note_Divider > 0) {
+          NoteDuration = Music_WholeNote / Note_Divider;
+        } else {
+          NoteDuration = Music_WholeNote / abs(Note_Divider);
+          NoteDuration *= 1.5;
+        }
+        if (Music_Note != REST) {
+          tone(TONE_PIN, Music_Note);
+        } else resting = true;
+        NoteStart = now;
+        NotePlaying = true;
+      } else {
+        //pause for a sec, then loop..
+        noTone(TONE_PIN);
+        NoteStart = now;
+        NoteDuration = 1000;
+        //Music_Song++;
+        //if (Music_Song > (sizeof(MusicTempos) / sizeof(MusicTempos[0])) - 1) Music_Song = 0;
+        CurrNote = -2;
+      }
+    }
   }
 }
