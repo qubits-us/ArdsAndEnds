@@ -1,3 +1,24 @@
+/*
+     Arduino Solataire
+
+     built for my M5 Tab5
+
+     cards.h was found in multiple sources online could not find any original credits to pass on..
+     they do take a bit of room but this board has quite allot of that..
+
+     Cards could be bigger, a bit hard to see..
+     Game plays nice..
+
+     could easily be ported but does require a bit of screen size..
+     Created 12.24.2025 ~q
+
+     be it harm none, do as you wish..
+     
+*/
+
+
+
+
 #include <M5Unified.h>
 #include <M5GFX.h>
 #include<time.h>
