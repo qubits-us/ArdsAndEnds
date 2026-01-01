@@ -20,22 +20,21 @@
 
 
 #include <M5Unified.h>
-#include <M5GFX.h>
 #include<time.h>
-#include "cards.h"
+#include "bigcards.h"
 
 #define SCREEN_WIDTH 1280
 #define SCREEN_HEIGHT 720
 
-M5GFX Display;
 
 
-int8_t ButtonWidth = 40;
+
+int8_t ButtonWidth = 60;
 int8_t ButtonHeight = 30;
-int8_t CardWidth = 60;
-int8_t CardHeight = 84;
+int8_t CardWidth = 72;
+int8_t CardHeight = 110;
 int8_t CardBack = 52;
-int8_t CardOL = 20;
+int8_t CardOL = 30;
 int8_t Border = 20;
 int8_t Gap = 30;
 
@@ -83,10 +82,17 @@ struct SelectionRect
 };
 
 SelectionRect SelectRect;
+//batt info
+SelectionRect BattLevelRect,BattVoltageRect,BattChargingRect;
+
 
 unsigned long lastTouch;
 unsigned long touchDebounce = 200;
 unsigned long now;
+
+unsigned long lastBattCheck;
+unsigned long battCheckInterval = 10000;
+
 
 bool debug = true;
 
@@ -158,20 +164,57 @@ void SetupTable()
 
   M5.Display.fillScreen(TFT_DARKGREEN);
 
-  int sw, sh;
+  int sw, sh, x ,y;
 
-  sw = Display.width();
-  sh = Display.height();
+  sw = M5.Display.width();
+  sh = M5.Display.height();
 
-  int x = Border + TableLeft;
-  int y = Border + TableTop;
+  y = Border;
+  x = sw - (200 + Border);
+  BattLevelRect.x = x;
+  BattLevelRect.y = y;
+  BattLevelRect.w = 200;
+  BattLevelRect.h = 60;
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextSize(1);
+  M5.Display.setTextColor(TFT_BLACK);
+  M5.Display.fillRoundRect(x,y,200,60,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,200,60,4,TFT_YELLOW);
+   
+  M5.Display.setTextColor(TFT_BLACK);
+  M5.Display.setColor(TFT_WHITE);
+  //Sprite.setTextFont(1);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextSize(1);
+  //Sprite.drawString("Is Charging",x+3,y+3);
+  //Sprite.drawString("Yes",x+3,y+30);
+  y+= 60+ Gap;
+  //x -= (200 + Gap);
+  BattVoltageRect.x = x;
+  BattVoltageRect.y = y;
+  BattVoltageRect.w = 200;
+  BattVoltageRect.h = 60;
+  M5.Display.fillRoundRect(x,y,200,60,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,200,60,4,TFT_YELLOW);
+  y+= 60 + Gap;
+  //x -= (200 + Gap);
+  BattChargingRect.x = x;
+  BattChargingRect.y = y;
+  BattChargingRect.w = 200;
+  BattChargingRect.h = 60;
+  M5.Display.fillRoundRect(x,y,200,60,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,200,60,4,TFT_YELLOW);
+
+
+   x = Border + TableLeft;
+   y = Border + TableTop;
   Button.x = x;
   Button.y = y;
   Button.w = ButtonWidth;
   Button.h = ButtonHeight;
   M5.Display.fillRoundRect(x,y, ButtonWidth, ButtonHeight, 8 , TFT_LIGHTGRAY);
   M5.Display.setTextColor(TFT_BLACK);
-  M5.Display.setTextSize(2);
+  M5.Display.setTextSize(1);
   M5.Display.drawString("New",x+3,y+8);
   M5.Display.drawRoundRect(x, y, ButtonWidth, ButtonHeight,8, TFT_YELLOW);
   y+=ButtonHeight+Gap;
@@ -181,7 +224,7 @@ void SetupTable()
   Spots[0].h = CardHeight;
   Spots[0].w = CardWidth;
   Spots[0].area = 1;
-  M5.Display.pushImage(x, y, 60, 84, card[CardBack]);
+  M5.Display.pushImage(x, y, CardWidth, CardHeight, card[CardBack]);
   M5.Display.drawRect(x, y, CardWidth, CardHeight, TFT_YELLOW);
   x += CardWidth + Gap;
   Spots[1].y = y;
@@ -257,8 +300,8 @@ void StockFlip()
     M5.Display.fillRect(Spots[0].x, Spots[0].y, CardWidth, CardHeight, TFT_DARKGREEN);
     M5.Display.drawRoundRect(Spots[0].x, Spots[0].y, CardWidth, CardHeight, 4, TFT_YELLOW);
   }
-  M5.Display.pushImage(Spots[1].x, Spots[1].y, 60, 84, card[Waste[WasteCount - 1]]);
-  M5.Display.drawRoundRect(Spots[1].x, Spots[1].y, 60, 84, 4, TFT_YELLOW);
+  M5.Display.pushImage(Spots[1].x, Spots[1].y, CardWidth, CardHeight, card[Waste[WasteCount - 1]]);
+  M5.Display.drawRoundRect(Spots[1].x, Spots[1].y, CardWidth, CardHeight, 4, TFT_YELLOW);
 }
 
 void SelectWaste()
@@ -656,6 +699,61 @@ void DrawSelection()
   }
 }
 
+
+void UpdateBattDisplay(){
+  //display battery information
+  int x,y,w,h;
+  bool isCharging =M5.Power.isCharging();
+  int  battVolts  =M5.Power.getBatteryVoltage();
+  int  battLevel  =M5.Power.getBatteryLevel();
+
+  x = BattLevelRect.x;
+  y = BattLevelRect.y;
+  w = BattLevelRect.w;
+  h = BattLevelRect.h;
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextSize(1);
+  M5.Display.setTextColor(TFT_BLACK);
+  M5.Display.fillRoundRect(x,y,w,h,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,w,h,4,TFT_YELLOW);
+   int nw = w-4;
+   int cl = battLevel; // simulated batt level
+   if (cl < 100)
+    {
+      float multi = cl / 100.0;
+      nw = nw * multi;
+    }
+  M5.Display.fillRect(x + 2, y + 2, nw, h - 4, TFT_GREEN);
+  M5.Display.drawNumber(cl, x + 10, y + 20);
+
+  M5.Display.setTextColor(TFT_BLACK);
+  M5.Display.setColor(TFT_WHITE);
+  //Sprite.setTextFont(1);
+  M5.Display.setFont(&fonts::FreeSansBold9pt7b);
+  M5.Display.setTextSize(1);
+  //Sprite.drawString("Is Charging",x+3,y+3);
+  //Sprite.drawString("Yes",x+3,y+30);
+
+  //x -= (200 + Gap);
+  x = BattVoltageRect.x;
+  y = BattVoltageRect.y;
+  M5.Display.fillRoundRect(x,y,w,h,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,w,h,4,TFT_YELLOW);
+  M5.Display.drawString("Voltage",x+3,y+3);
+  M5.Display.drawNumber(battVolts,x+3,y+30);
+  x = BattChargingRect.x;
+  y = BattChargingRect.y;
+  M5.Display.fillRoundRect(x,y,w,h,4,TFT_WHITE);
+  M5.Display.drawRoundRect(x,y,w,h,4,TFT_YELLOW);
+  M5.Display.drawString("Charging",x+3,y+3);
+  if (isCharging)
+  M5.Display.drawString("Yes",x+3,y+30);
+  else
+  M5.Display.drawString("No",x+3,y+30);
+  
+}
+
+
 void setup()
 {
   M5.begin();
@@ -688,6 +786,13 @@ void loop()
       CheckScreenTouch(touchDetail.x, touchDetail.y);
     }
   }
+
+ if (now - lastBattCheck >= battCheckInterval){
+  lastBattCheck = now;
+  UpdateBattDisplay();
+ }
+
+
   delay(1);
 }
 
